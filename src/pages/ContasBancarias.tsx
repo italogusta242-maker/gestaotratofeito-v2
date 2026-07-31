@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,27 +23,38 @@ export default function ContasBancarias() {
   const [selectedConta, setSelectedConta] = useState<ContaBancaria | null>(null);
   const [txs, setTxs] = useState<Transacao[]>([]);
   const [allTxs, setAllTxs] = useState<Pick<Transacao, "valor" | "tipo" | "conta_bancaria_id">[]>([]);
+  const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
 
-  useEffect(() => { load(); }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     const [contasRes, txRes] = await Promise.all([
       supabase.from("contas_bancarias").select("*").order("nome"),
       supabase.from("transacoes").select("valor, tipo, conta_bancaria_id").eq("status", "Pago").not("conta_bancaria_id", "is", null)
     ]);
+    if (contasRes.error) { console.error("contas_bancarias:", contasRes.error); toast.error("Falha ao carregar contas bancárias"); }
+    if (txRes.error) console.error("transacoes:", txRes.error);
     setContas(contasRes.data ?? []);
     setAllTxs(txRes.data ?? []);
-  }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   async function loadTxs(contaId: string) {
-    const { data } = await supabase.from("transacoes").select("*").eq("conta_bancaria_id", contaId).order("created_at", { ascending: false }).limit(50);
+    const { data, error } = await supabase.from("transacoes").select("*").eq("conta_bancaria_id", contaId).order("created_at", { ascending: false }).limit(50);
+    if (error) { console.error("transacoes histórico:", error); toast.error(translateError(error)); return; }
     setTxs(data ?? []);
   }
 
   async function addConta(e: React.FormEvent) {
     e.preventDefault();
-    const { error } = await supabase.from("contas_bancarias").insert({ nome: form.nome, tipo: form.tipo, saldo_inicial: parseFloat(form.saldo_inicial) || 0 });
+    if (submitting) return;
+    const nome = form.nome.trim();
+    if (!nome) { toast.error("Informe o nome da conta."); return; }
+    const saldoInicial = form.saldo_inicial === "" ? 0 : parseFloat(form.saldo_inicial);
+    if (Number.isNaN(saldoInicial)) { toast.error("Saldo inicial inválido."); return; }
+    setSubmitting(true);
+    const { error } = await supabase.from("contas_bancarias").insert({ nome, tipo: form.tipo, saldo_inicial: saldoInicial });
+    setSubmitting(false);
     if (error) { toast.error(translateError(error)); return; }
     toast.success("Conta criada!");
     setShowAdd(false);
@@ -60,13 +71,18 @@ export default function ContasBancarias() {
 
   async function processTransferencia(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
+    if (!transForm.origemId || !transForm.destinoId) { toast.error("Selecione as contas de origem e destino."); return; }
     if (transForm.origemId === transForm.destinoId) { toast.error("Conta origem e destino devem ser diferentes."); return; }
     const txValor = parseFloat(transForm.valor);
-    if (!txValor || txValor <= 0) { toast.error("Valor inválido."); return; }
+    if (Number.isNaN(txValor) || txValor <= 0) { toast.error("Valor inválido."); return; }
+    if (!transForm.data || !/^\d{4}-\d{2}-\d{2}$/.test(transForm.data)) { toast.error("Data inválida."); return; }
+    const descricao = transForm.descricao.trim();
+    if (!descricao) { toast.error("Informe a descrição."); return; }
 
     const txsInsert = [
       {
-        descricao: transForm.descricao,
+        descricao,
         valor: -txValor,
         tipo: "Transferencia_Interna",
         status: "Pago",
@@ -77,7 +93,7 @@ export default function ContasBancarias() {
         categoria: "Transferência",
       },
       {
-        descricao: transForm.descricao,
+        descricao,
         valor: txValor,
         tipo: "Transferencia_Interna",
         status: "Pago",
@@ -89,7 +105,9 @@ export default function ContasBancarias() {
       }
     ];
 
+    setSubmitting(true);
     const { error } = await supabase.from("transacoes").insert(txsInsert);
+    setSubmitting(false);
     if (error) { toast.error(translateError(error)); return; }
 
     toast.success("Transferência realizada com sucesso!");

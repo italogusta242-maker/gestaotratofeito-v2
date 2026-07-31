@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,28 +20,40 @@ const roleLabels: Record<string, string> = {
 
 export default function Usuarios() {
   const [users, setUsers] = useState<UsuarioComRole[]>([]);
+  const [updating, setUpdating] = useState(false);
 
-  useEffect(() => { load(); }, []);
-
-  async function load() {
-    const { data: profiles } = await supabase.from("profiles").select("*");
-    const { data: roles } = await supabase.from("user_roles").select("*");
-    const merged = (profiles ?? []).map(p => ({
+  const load = useCallback(async () => {
+    const [profilesRes, rolesRes] = await Promise.all([
+      supabase.from("profiles").select("*"),
+      supabase.from("user_roles").select("*"),
+    ]);
+    if (profilesRes.error) { console.error("profiles:", profilesRes.error); toast.error("Falha ao carregar usuários"); }
+    if (rolesRes.error) console.error("user_roles:", rolesRes.error);
+    const profiles = profilesRes.data ?? [];
+    const roles = rolesRes.data ?? [];
+    const merged = profiles.map(p => ({
       ...p,
-      role: (roles ?? []).find(r => r.user_id === p.id)?.role ?? null,
-      role_id: (roles ?? []).find(r => r.user_id === p.id)?.id ?? null,
+      role: roles.find(r => r.user_id === p.id)?.role ?? null,
+      role_id: roles.find(r => r.user_id === p.id)?.id ?? null,
     }));
     setUsers(merged);
-  }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   async function changeRole(userId: string, existingRoleId: string | null, newRole: AppRole) {
+    if (updating) return;
+    if (!userId || !newRole) { toast.error("Dados inválidos para alteração de perfil."); return; }
+    if (!window.confirm(`Confirmar alteração do perfil para "${roleLabels[newRole] ?? newRole}"?`)) return;
+    setUpdating(true);
     if (existingRoleId) {
       const { error } = await supabase.from("user_roles").update({ role: newRole }).eq("id", existingRoleId);
-      if (error) { toast.error(translateError(error)); return; }
+      if (error) { setUpdating(false); toast.error(translateError(error)); return; }
     } else {
       const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: newRole });
-      if (error) { toast.error(translateError(error)); return; }
+      if (error) { setUpdating(false); toast.error(translateError(error)); return; }
     }
+    setUpdating(false);
     toast.success("Perfil atualizado!");
     load();
   }

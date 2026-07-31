@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,20 +72,24 @@ export default function Conciliacao() {
   const [showAddRegra, setShowAddRegra] = useState(false);
   const [regraForm, setRegraForm] = useState({ palavra_chave: "", categoria_sugerida: "", centro_custo_sugerido: "" });
 
-  useEffect(() => { loadMeta(); }, []);
-
-  async function loadMeta() {
+  const loadMeta = useCallback(async () => {
     const [r, cc, ct, v] = await Promise.all([
       supabase.from("regras_categorizacao").select("*, centros_custo(nome)").order("palavra_chave"),
       supabase.from("centros_custo").select("*"),
       supabase.from("contas_bancarias").select("*"),
       supabase.from("veiculos").select("id, placa, marca_modelo, status").order("created_at", { ascending: false }),
     ]);
+    if (r.error) { console.error("regras_categorizacao:", r.error); toast.error("Falha ao carregar regras"); }
+    if (cc.error) console.error("centros_custo:", cc.error);
+    if (ct.error) console.error("contas_bancarias:", ct.error);
+    if (v.error) console.error("veiculos:", v.error);
     setRegras(r.data ?? []);
     setCentros(cc.data ?? []);
     setContas(ct.data ?? []);
     setVeiculos(v.data ?? []);
-  }
+  }, []);
+
+  useEffect(() => { loadMeta(); }, [loadMeta]);
 
   function matchRule(descricao: string) {
     const lower = descricao.toLowerCase();
@@ -372,19 +376,26 @@ export default function Conciliacao() {
   }
 
   async function confirmarSelecionados() {
+    if (loading) return;
     const selected = lines.filter(l => l.selected && l.acao !== "ignorar");
     if (!selected.length) { toast.error("Selecione ao menos uma transação."); return; }
+    // Validate each selected line
+    for (const l of selected) {
+      if (Number.isNaN(Number(l.valor)) || Number(l.valor) <= 0) { toast.error(`Valor inválido em "${l.descricao}".`); return; }
+      if (!l.data || !/^\d{4}-\d{2}-\d{2}$/.test(l.data)) { toast.error(`Data inválida em "${l.descricao}".`); return; }
+    }
     setLoading(true);
 
     try {
       // Process "vincular" lines - update existing transactions
       const vincular = selected.filter(l => l.acao === "vincular" && l.transacao_vinculada_id);
       for (const l of vincular) {
-        await supabase.from("transacoes").update({
+        const { error } = await supabase.from("transacoes").update({
           status: "Pago",
           data_pagamento: l.data,
           conta_bancaria_id: contaId || null,
         }).eq("id", l.transacao_vinculada_id!);
+        if (error) throw error;
       }
 
       // Process "criar" lines - insert new transactions
@@ -420,9 +431,12 @@ export default function Conciliacao() {
 
   async function addRegra(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
+    const palavra = regraForm.palavra_chave.trim();
+    if (!palavra) { toast.error("Informe a palavra-chave."); return; }
     const { error } = await supabase.from("regras_categorizacao").insert({
-      palavra_chave: regraForm.palavra_chave,
-      categoria_sugerida: regraForm.categoria_sugerida || null,
+      palavra_chave: palavra,
+      categoria_sugerida: regraForm.categoria_sugerida.trim() || null,
       centro_custo_sugerido: regraForm.centro_custo_sugerido || null,
     });
     if (error) { toast.error(translateError(error)); return; }
@@ -433,9 +447,11 @@ export default function Conciliacao() {
   }
 
   async function deleteRegra(id: string) {
-    if (!confirm("Remover esta regra de categorização?")) return;
+    if (!id) return;
+    if (!window.confirm("Remover esta regra de categorização?")) return;
     const { error } = await supabase.from("regras_categorizacao").delete().eq("id", id);
     if (error) { toast.error(translateError(error)); return; }
+    toast.success("Regra removida.");
     loadMeta();
   }
 

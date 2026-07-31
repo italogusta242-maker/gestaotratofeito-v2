@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,13 +22,15 @@ export default function Clientes() {
   const [editing, setEditing] = useState<Cliente | null>(null);
   const [deleting, setDeleting] = useState<Cliente | null>(null);
   const [form, setForm] = useState({ nome: "", cpf_cnpj: "", email: "", telefone: "", endereco: "", rg: "", estado_civil: "", nacionalidade: "", data_nascimento: "" });
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => { load(); }, []);
-
-  async function load() {
-    const { data } = await supabase.from("clientes").select("*").order("nome");
+  const load = useCallback(async () => {
+    const { data, error } = await supabase.from("clientes").select("*").order("nome");
+    if (error) { console.error("clientes:", error); toast.error("Falha ao carregar clientes"); }
     setClientes(data ?? []);
-  }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   function openEdit(c: Cliente) {
     setForm({ nome: c.nome, cpf_cnpj: c.cpf_cnpj, email: c.email ?? "", telefone: c.telefone ?? "", endereco: c.endereco ?? "", rg: c.rg ?? "", estado_civil: c.estado_civil ?? "", nacionalidade: c.nacionalidade ?? "", data_nascimento: c.data_nascimento ?? "" });
@@ -42,21 +44,43 @@ export default function Clientes() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    const payload = { ...form, email: form.email || null, telefone: form.telefone || null, endereco: form.endereco || null, rg: form.rg || null, estado_civil: form.estado_civil || null, nacionalidade: form.nacionalidade || null, data_nascimento: form.data_nascimento || null };
+    if (submitting) return;
+    const nome = form.nome.trim();
+    const cpfCnpj = form.cpf_cnpj.trim();
+    if (!nome) { toast.error("Informe o nome."); return; }
+    if (!cpfCnpj) { toast.error("Informe o CPF/CNPJ."); return; }
+    const email = form.email.trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast.error("E-mail inválido."); return; }
+    const dataNasc = form.data_nascimento.trim();
+    if (dataNasc && !/^\d{4}-\d{2}-\d{2}$/.test(dataNasc)) { toast.error("Data de nascimento inválida."); return; }
+    const payload = {
+      nome,
+      cpf_cnpj: cpfCnpj,
+      email: email || null,
+      telefone: form.telefone.trim() || null,
+      endereco: form.endereco.trim() || null,
+      rg: form.rg.trim() || null,
+      estado_civil: form.estado_civil.trim() || null,
+      nacionalidade: form.nacionalidade.trim() || null,
+      data_nascimento: dataNasc || null,
+    };
+    setSubmitting(true);
     if (editing) {
       const { error } = await supabase.from("clientes").update(payload).eq("id", editing.id);
+      setSubmitting(false);
       if (error) { toast.error(translateError(error)); return; }
       toast.success("Cliente atualizado!");
       setEditing(null);
     } else {
       const { error } = await supabase.from("clientes").insert(payload);
+      setSubmitting(false);
       if (error) { toast.error(translateError(error)); return; }
       toast.success("Cliente cadastrado!");
       setShowAdd(false);
     }
     load();
   }
-  
+
   async function handleDelete() {
     if (!deleting) return;
     const { error } = await supabase.from("clientes").delete().eq("id", deleting.id);
