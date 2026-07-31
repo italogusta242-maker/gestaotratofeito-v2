@@ -83,9 +83,15 @@ export default function VeiculoDossie({ veiculo, onClose, isEmissao }: Props) {
     loadDocs();
   }
 
-  function getDocUrl(name: string) {
-    const { data } = supabase.storage.from("veiculos-docs").getPublicUrl(`${veiculo.id}/${name}`);
-    return data.publicUrl;
+  async function openDoc(name: string) {
+    const { data, error } = await supabase.storage
+      .from("veiculos-docs")
+      .createSignedUrl(`${veiculo.id}/${name}`, 60 * 5);
+    if (error || !data) {
+      toast.error("Não foi possível abrir o documento");
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
   }
 
   const receitas = transacoes.filter(t => t.tipo === "Receita").reduce((s, t) => s + Number(t.valor), 0);
@@ -175,7 +181,7 @@ export default function VeiculoDossie({ veiculo, onClose, isEmissao }: Props) {
               <div key={d.name} className="flex items-center justify-between py-1 border-b text-sm">
                 <span className="truncate max-w-[300px]">{d.name.replace(/^\d+_/, "")}</span>
                 <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => window.open(getDocUrl(d.name), "_blank")}>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openDoc(d.name)}>
                     <Download className="h-3.5 w-3.5" />
                   </Button>
                   {canWrite && (

@@ -143,9 +143,15 @@ export default function VeiculoDetalhe() {
     loadAll();
   }
 
-  function getDocUrl(name: string) {
-    const { data } = supabase.storage.from("veiculos-docs").getPublicUrl(`${id}/${name}`);
-    return data.publicUrl;
+  async function openDoc(name: string) {
+    const { data, error } = await supabase.storage
+      .from("veiculos-docs")
+      .createSignedUrl(`${id}/${name}`, 60 * 5); // 5 minutos
+    if (error || !data) {
+      toast.error("Não foi possível abrir o documento");
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
   }
 
   function openEdit() {
@@ -476,7 +482,7 @@ export default function VeiculoDetalhe() {
               <div key={d.name} className="flex items-center justify-between py-2 border-b last:border-0">
                 <span className="truncate max-w-[400px] text-sm">{d.name.replace(/^\d+_/, "")}</span>
                 <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => window.open(getDocUrl(d.name), "_blank")}>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openDoc(d.name)}>
                     <Download className="h-4 w-4" />
                   </Button>
                   {canWrite && (
