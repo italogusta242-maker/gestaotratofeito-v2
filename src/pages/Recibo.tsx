@@ -5,14 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft } from "lucide-react";
 import logoTratoFeito from "@/assets/logo-trato-feito.png";
 import { formatBRL } from "@/lib/format";
+import type { VeiculoComCentro, Transacao, Cliente } from "@/lib/db-types";
 
 export default function Recibo() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const [veiculo, setVeiculo] = useState<any>(null);
-  const [vendaTx, setVendaTx] = useState<any>(null);
-  const [compradorCliente, setCompradorCliente] = useState<any>(null);
-  const [vendedorCliente, setVendedorCliente] = useState<any>(null);
+  const [veiculo, setVeiculo] = useState<VeiculoComCentro | null>(null);
+  const [vendaTx, setVendaTx] = useState<Transacao | null>(null);
+  const [compradorCliente, setCompradorCliente] = useState<Cliente | null>(null);
+  const [vendedorCliente, setVendedorCliente] = useState<Cliente | null>(null);
 
   useEffect(() => {
     if (!id) return;

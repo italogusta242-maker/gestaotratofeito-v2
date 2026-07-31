@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import ClienteSelector from "@/components/ClienteSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { translateError } from "@/lib/supabase-errors";
+import type { CentroCusto } from "@/lib/db-types";
 
 interface Props {
   open: boolean;
@@ -24,7 +25,7 @@ interface Props {
 
 export default function NovoVeiculoDialog({ open, onClose, defaultValues, title }: Props) {
   const { user } = useAuth();
-  const [centros, setCentros] = useState<any[]>([]);
+  const [centros, setCentros] = useState<CentroCusto[]>([]);
   const [form, setForm] = useState({
     placa: "", marca_modelo: "", ano: "", ano_modelo: "", cor: "", renavam: "", chassi: "", combustivel: "",
     valor_aquisicao: defaultValues?.valor_aquisicao ?? "",

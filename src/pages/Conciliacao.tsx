@@ -17,6 +17,17 @@ import Papa from "papaparse";
 import * as pdfjsLib from "pdfjs-dist";
 import { formatBRL } from "@/lib/format";
 import { translateError } from "@/lib/supabase-errors";
+import type { CentroCusto, ContaBancaria, Veiculo, Transacao } from "@/lib/db-types";
+
+type RegraCategorizacao = {
+  id: string;
+  palavra_chave: string;
+  categoria_sugerida: string | null;
+  centro_custo_sugerido: string | null;
+  centros_custo?: { nome: string } | null;
+};
+type VeiculoLite = Pick<Veiculo, "id" | "placa" | "marca_modelo" | "status">;
+type TransacaoMatch = Pick<Transacao, "id" | "descricao" | "valor" | "tipo" | "status" | "data_vencimento" | "categoria">;
 
 // Configuração do Web Worker do PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.mjs`;
@@ -39,9 +50,9 @@ interface ExtractLine {
 export default function Conciliacao() {
   const { user } = useAuth();
   const [lines, setLines] = useState<ExtractLine[]>([]);
-  const [regras, setRegras] = useState<any[]>([]);
-  const [centros, setCentros] = useState<any[]>([]);
-  const [contas, setContas] = useState<any[]>([]);
+  const [regras, setRegras] = useState<RegraCategorizacao[]>([]);
+  const [centros, setCentros] = useState<CentroCusto[]>([]);
+  const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [contaId, setContaId] = useState("");
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState("importar");
@@ -49,13 +60,13 @@ export default function Conciliacao() {
   // Match modal
   const [matchIdx, setMatchIdx] = useState<number | null>(null);
   const [matchSearch, setMatchSearch] = useState("");
-  const [matchResults, setMatchResults] = useState<any[]>([]);
+  const [matchResults, setMatchResults] = useState<TransacaoMatch[]>([]);
   const [matchLoading, setMatchLoading] = useState(false);
 
   // Create modal
   const [createIdx, setCreateIdx] = useState<number | null>(null);
   const [createForm, setCreateForm] = useState({ categoria: "", centro_custo_id: "", veiculo_id: "", destinoCusto: "" as "Loja" | "Veículo" | "", forma_pagamento: "PIX", favorecido_pagador: "" });
-  const [veiculos, setVeiculos] = useState<any[]>([]);
+  const [veiculos, setVeiculos] = useState<VeiculoLite[]>([]);
 
   // Rule form
   const [showAddRegra, setShowAddRegra] = useState(false);
@@ -102,9 +113,9 @@ export default function Conciliacao() {
             toast.error("Nenhuma linha encontrada no CSV.");
             return;
           }
-          parseCSV(result.data as any[]);
+          parseCSV(result.data as Record<string, unknown>[]);
         },
-        error: (err: any) => {
+        error: (err) => {
           console.error("Erro ao processar CSV:", err);
           toast.error("Erro ao processar o arquivo CSV.");
         },
@@ -124,7 +135,7 @@ export default function Conciliacao() {
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join("\n");
+        const pageText = textContent.items.map((item) => ("str" in item ? item.str : "")).join("\n");
         fullText += pageText + "\n";
       }
 
@@ -165,7 +176,7 @@ export default function Conciliacao() {
           while (j < lines.length) {
             const nextLine = lines[j];
             // Check if it's a value (format: 1.000,00 or 150,00)
-            const isValue = /^[\d\.]+,[0-9]{2}$/.test(nextLine.replace("- ", ""));
+            const isValue = /^[\d.]+,[0-9]{2}$/.test(nextLine.replace("- ", ""));
 
             if (isValue) {
               valor = parseFloat(nextLine.replace("- ", "").replace(".", "").replace(",", "."));
@@ -273,7 +284,7 @@ export default function Conciliacao() {
     else toast.success(`${transactions.length} transações carregadas!`);
   }
 
-  function parseCSV(data: any[]) {
+  function parseCSV(data: Record<string, unknown>[]) {
     const transactions: ExtractLine[] = data.map((row) => {
       // Improved matching for description and value
       const desc = row.descricao || row.Descricao || row.DESCRICAO || row.memo || row.Memo || row.historico || row.Historico || "";
@@ -298,7 +309,7 @@ export default function Conciliacao() {
     setLines(prev => prev.map((l, i) => i === idx ? { ...l, selected: !l.selected } : l));
   }
 
-  function updateLine(idx: number, field: keyof ExtractLine, value: any) {
+  function updateLine(idx: number, field: keyof ExtractLine, value: ExtractLine[keyof ExtractLine]) {
     setLines(prev => prev.map((l, i) => i === idx ? { ...l, [field]: value } : l));
   }
 

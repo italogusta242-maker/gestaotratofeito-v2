@@ -101,7 +101,7 @@ export default function Financiamentos() {
     load();
   }
 
-  async function selectFin(fin: any) {
+  async function selectFin(fin: FinanciamentoComRelacoes) {
     setSelected(fin);
     const { data } = await supabase.from("transacoes").select("*").eq("financiamento_id", fin.id).order("data_vencimento");
     setParcelas(data ?? []);

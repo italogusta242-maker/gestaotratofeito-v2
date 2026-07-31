@@ -51,7 +51,7 @@ export default function ContasBancarias() {
     load();
   }
 
-  function calcSaldo(conta: any) {
+  function calcSaldo(conta: ContaBancaria) {
     const movements = allTxs.filter(t => t.conta_bancaria_id === conta.id);
     const totalIn = movements.filter(t => t.tipo === "Receita" || (t.tipo === "Transferencia_Interna" && Number(t.valor) > 0)).reduce((s, t) => s + Number(t.valor), 0);
     const totalOut = movements.filter(t => t.tipo === "Despesa" || (t.tipo === "Transferencia_Interna" && Number(t.valor) < 0)).reduce((s, t) => s + Math.abs(Number(t.valor)), 0);

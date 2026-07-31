@@ -85,7 +85,7 @@ export default function Dashboard() {
   }, [loadAll]);
 
   const filterByCentro = useCallback(
-    (items: any[], tab: TabKey, field = "centro_custo_id") => {
+    <T extends Record<string, unknown>>(items: T[], tab: TabKey, field = "centro_custo_id"): T[] => {
       if (tab === "tudo") return items;
       const nome = CENTRO_NOMES[tab];
       const centroId = centros.find((c) => c.nome === nome)?.id;
@@ -138,7 +138,7 @@ export default function Dashboard() {
 
     // Pie chart: Expenses by Category
     const activeTx = tx.filter(t => t.status === "Pago" && t.data_pagamento && t.data_pagamento >= mesInicio && t.data_pagamento <= mesFim && t.tipo === "Despesa");
-    const catMap = activeTx.reduce((acc: any, t) => {
+    const catMap = activeTx.reduce((acc: Record<string, number>, t) => {
       const cat = t.categoria || "Outros";
       acc[cat] = (acc[cat] || 0) + Number(t.valor);
       return acc;

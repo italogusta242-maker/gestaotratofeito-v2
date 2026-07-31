@@ -11,8 +11,9 @@ import ClienteSelector from "@/components/ClienteSelector";
 import NovoVeiculoDialog from "@/components/NovoVeiculoDialog";
 import { Plus, Trash2 } from "lucide-react";
 import { translateError } from "@/lib/supabase-errors";
+import type { Veiculo, ContaBancaria } from "@/lib/db-types";
 
-interface Props { veiculo: any; onClose: () => void; }
+interface Props { veiculo: Veiculo; onClose: () => void; }
 
 interface PagamentoLinha {
   id: string;
@@ -30,7 +31,7 @@ function novaLinha(): PagamentoLinha {
 
 export default function VendaDialog({ veiculo, onClose }: Props) {
   const { user } = useAuth();
-  const [contas, setContas] = useState<any[]>([]);
+  const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [valorVenda, setValorVenda] = useState("");
   const [pagamentos, setPagamentos] = useState<PagamentoLinha[]>([novaLinha()]);
   const [loading, setLoading] = useState(false);

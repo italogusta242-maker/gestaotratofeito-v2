@@ -6,12 +6,13 @@ import { Printer, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import type { Veiculo, Cliente } from "@/lib/db-types";
 
 export default function ContratoRepasse() {
   const { id } = useParams<{ id: string }>();
-  const [veiculo, setVeiculo] = useState<any>(null);
-  const [clienteCompra, setClienteCompra] = useState<any>(null);
-  const [clienteVenda, setClienteVenda] = useState<any>(null);
+  const [veiculo, setVeiculo] = useState<Veiculo | null>(null);
+  const [clienteCompra, setClienteCompra] = useState<Cliente | null>(null);
+  const [clienteVenda, setClienteVenda] = useState<Cliente | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

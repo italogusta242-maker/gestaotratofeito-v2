@@ -68,7 +68,7 @@ export default function Veiculos() {
     setForm({ ...form, placa: formatted });
   }
 
-  function openEdit(v: any) {
+  function openEdit(v: VeiculoComCentro) {
     setForm({
       placa: v.placa,
       marca_modelo: v.marca_modelo,
@@ -149,7 +149,7 @@ export default function Veiculos() {
   const canWrite = role === "admin" || role === "auxiliar_operacional";
   const isEmissao = role === "auxiliar_emissao";
 
-  function getDiasPatio(v: any) {
+  function getDiasPatio(v: VeiculoComCentro) {
     const dataEntrada = v.data_entrada_patio ? new Date(v.data_entrada_patio) : new Date(v.created_at);
     return differenceInDays(new Date(), dataEntrada);
   }
@@ -159,7 +159,7 @@ export default function Veiculos() {
     return v.placa.toLowerCase().includes(q) || v.marca_modelo.toLowerCase().includes(q);
   });
 
-  const grouped = STATUSES.reduce<Record<string, any[]>>((acc, s) => {
+  const grouped = STATUSES.reduce<Record<string, VeiculoComCentro[]>>((acc, s) => {
     acc[s] = filtered.filter(v => v.status === s);
     return acc;
   }, {});
@@ -308,7 +308,7 @@ export default function Veiculos() {
                           {!isEmissao && (
                             <div className="flex justify-between items-center text-[10px]">
                               <span className="text-muted-foreground">C: {formatBRL(Number(v.valor_aquisicao))}</span>
-                              <span className="font-semibold text-emerald-600">V: {(v as any).valor_venda ? formatBRL(Number((v as any).valor_venda)) : "—"}</span>
+                              <span className="font-semibold text-emerald-600">V: {v.valor_venda ? formatBRL(Number(v.valor_venda)) : "—"}</span>
                             </div>
                           )}
                           <div className="flex gap-0.5 pt-0.5" onClick={e => e.stopPropagation()}>
@@ -374,7 +374,7 @@ export default function Veiculos() {
                   <TableCell><StatusBadge status={v.status} /></TableCell>
                   <TableCell className="text-sm flex items-center gap-1"><MapPin className="h-3 w-3 text-muted-foreground" />{v.localizacao || "—"}</TableCell>
                   {!isEmissao && <TableCell className="text-sm text-right font-medium text-muted-foreground">{formatBRL(Number(v.valor_aquisicao))}</TableCell>}
-                  {!isEmissao && <TableCell className="text-sm text-right font-semibold text-emerald-600">{(v as any).valor_venda ? formatBRL(Number((v as any).valor_venda)) : "—"}</TableCell>}
+                  {!isEmissao && <TableCell className="text-sm text-right font-semibold text-emerald-600">{v.valor_venda ? formatBRL(Number(v.valor_venda)) : "—"}</TableCell>}
                   <TableCell onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-center gap-0.5">
                       {canWrite && v.status !== "Vendido" && (

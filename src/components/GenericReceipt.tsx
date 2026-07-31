@@ -2,10 +2,11 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import logoTratoFeito from "@/assets/logo-trato-feito.png";
 import { formatBRL } from "@/lib/format";
+import type { Transacao, Veiculo } from "@/lib/db-types";
 
 interface GenericReceiptProps {
-    transacao: any;
-    veiculo?: any;
+    transacao: Transacao;
+    veiculo?: Pick<Veiculo, "placa" | "marca_modelo" | "ano" | "cor"> | null;
 }
 
 export default function GenericReceipt({ transacao, veiculo }: GenericReceiptProps) {

@@ -6,9 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import type { Profile } from "@/lib/db-types";
 import { translateError } from "@/lib/supabase-errors";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
+type UsuarioComRole = Profile & { role: AppRole | null; role_id: string | null };
 
 const roleLabels: Record<string, string> = {
   admin: "Admin",
@@ -17,7 +19,7 @@ const roleLabels: Record<string, string> = {
 };
 
 export default function Usuarios() {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<UsuarioComRole[]>([]);
 
   useEffect(() => { load(); }, []);
 

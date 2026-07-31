@@ -60,7 +60,7 @@ export default function Equipe() {
         body: { email: form.email, password: form.password, nome: form.nome, role: form.role },
       });
       if (res.error) throw new Error(res.error.message);
-      const data = res.data as any;
+      const data = res.data as { error?: string } | null;
       if (data?.error) throw new Error(data.error);
       toast.success("Membro criado com sucesso!");
       setShowAdd(false);
@@ -73,7 +73,7 @@ export default function Equipe() {
     }
   }
 
-  function openEdit(u: any) {
+  function openEdit(u: EquipeUser) {
     setEditUser(u);
     setEditForm({ nome: u.nome ?? "", email: u.email ?? "", password: "" });
   }
@@ -96,7 +96,7 @@ export default function Equipe() {
 
       const res = await supabase.functions.invoke("reset-user-password", { body });
       if (res.error) throw new Error(res.error.message);
-      const data = res.data as any;
+      const data = res.data as { error?: string } | null;
       if (data?.error) throw new Error(data.error);
       toast.success("Usuário atualizado com sucesso!");
       setEditUser(null);
@@ -127,7 +127,7 @@ export default function Equipe() {
         body: { user_id: userId },
       });
       if (res.error) throw new Error(res.error.message);
-      const data = res.data as any;
+      const data = res.data as { error?: string } | null;
       if (data?.error) throw new Error(data.error);
       toast.success("Membro excluído com sucesso!");
       load();

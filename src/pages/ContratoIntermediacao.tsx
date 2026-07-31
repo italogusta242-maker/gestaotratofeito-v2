@@ -6,12 +6,13 @@ import { Printer, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import logo from "@/assets/logo-trato-feito.png";
+import type { Veiculo, Cliente } from "@/lib/db-types";
 
 export default function ContratoIntermediacao() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [veiculo, setVeiculo] = useState<any>(null);
-  const [cliente, setCliente] = useState<any>(null);
+  const [veiculo, setVeiculo] = useState<Veiculo | null>(null);
+  const [cliente, setCliente] = useState<Cliente | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

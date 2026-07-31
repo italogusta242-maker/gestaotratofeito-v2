@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import type { Veiculo, Cliente } from "@/lib/db-types";
 
 export default function Procuracao() {
     const navigate = useNavigate();
@@ -12,8 +13,8 @@ export default function Procuracao() {
     const [searchParams] = useSearchParams();
     const tipo = searchParams.get("tipo") || "Autenticidade";
 
-    const [veiculo, setVeiculo] = useState<any>(null);
-    const [outorgante, setOutorgante] = useState<any>(null);
+    const [veiculo, setVeiculo] = useState<Veiculo | null>(null);
+    const [outorgante, setOutorgante] = useState<Cliente | null>(null);
 
     useEffect(() => {
         if (!id) return;

@@ -12,9 +12,10 @@ import { FileText, Upload, Trash2, Download, MapPin, Loader2 } from "lucide-reac
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
 import { translateError } from "@/lib/supabase-errors";
+import type { Veiculo, Transacao } from "@/lib/db-types";
 
 interface Props {
-  veiculo: any;
+  veiculo: Veiculo;
   onClose: () => void;
   isEmissao: boolean;
 }
@@ -25,10 +26,10 @@ const localizacaoOptions = ["Pátio", "Oficina", "Despachante", "Lavagem", "Funi
 export default function VeiculoDossie({ veiculo, onClose, isEmissao }: Props) {
   const { role } = useAuth();
   const canWrite = role === "admin" || role === "auxiliar_operacional";
-  const [transacoes, setTransacoes] = useState<any[]>([]);
+  const [transacoes, setTransacoes] = useState<Transacao[]>([]);
   const [status, setStatus] = useState(veiculo.status);
   const [localizacao, setLocalizacao] = useState(veiculo.localizacao || "Pátio");
-  const [docs, setDocs] = useState<any[]>([]);
+  const [docs, setDocs] = useState<{ name: string; created_at?: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 

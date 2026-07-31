@@ -52,7 +52,7 @@ export default function ContasFixas() {
     setShowAdd(true);
   }
 
-  function openEdit(cf: any) {
+  function openEdit(cf: ContaFixaComRelacoes) {
     setForm({
       descricao: cf.descricao,
       valor: String(cf.valor),
@@ -88,7 +88,7 @@ export default function ContasFixas() {
     load();
   }
 
-  async function toggleAtivo(cf: any) {
+  async function toggleAtivo(cf: ContaFixaComRelacoes) {
     await supabase.from("contas_fixas").update({ ativo: !cf.ativo }).eq("id", cf.id);
     load();
   }

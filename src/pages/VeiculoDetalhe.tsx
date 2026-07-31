@@ -44,14 +44,14 @@ export default function VeiculoDetalhe() {
   const [clienteVenda, setClienteVenda] = useState<Cliente | null>(null);
   const [transacoes, setTransacoes] = useState<Transacao[]>([]);
   const [centros, setCentros] = useState<CentroCusto[]>([]);
-  const [docs, setDocs] = useState<any[]>([]);
+  const [docs, setDocs] = useState<{ name: string; created_at?: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [showDespesa, setShowDespesa] = useState(false);
   const [showVenda, setShowVenda] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showProcuracao, setShowProcuracao] = useState(false);
   const [tipoReconhecimento, setTipoReconhecimento] = useState("GOV.BR");
-  const [editForm, setEditForm] = useState<any>({});
+  const [editForm, setEditForm] = useState<Record<string, string | number | null>>({});
   const [loading, setLoading] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -105,7 +105,7 @@ export default function VeiculoDetalhe() {
 
   async function handleStatusChange(newStatus: string) {
     await supabase.from("veiculos").update({ status: newStatus }).eq("id", id!);
-    setVeiculo((v: any) => ({ ...v, status: newStatus }));
+    setVeiculo((v) => (v ? { ...v, status: newStatus } : v));
     toast.success(`Status atualizado para "${newStatus}"`);
   }
 

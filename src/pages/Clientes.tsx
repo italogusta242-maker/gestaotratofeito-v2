@@ -30,7 +30,7 @@ export default function Clientes() {
     setClientes(data ?? []);
   }
 
-  function openEdit(c: any) {
+  function openEdit(c: Cliente) {
     setForm({ nome: c.nome, cpf_cnpj: c.cpf_cnpj, email: c.email ?? "", telefone: c.telefone ?? "", endereco: c.endereco ?? "", rg: c.rg ?? "", estado_civil: c.estado_civil ?? "", nacionalidade: c.nacionalidade ?? "", data_nascimento: c.data_nascimento ?? "" });
     setEditing(c);
   }

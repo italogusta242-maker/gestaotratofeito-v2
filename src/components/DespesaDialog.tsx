@@ -8,12 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { translateError } from "@/lib/supabase-errors";
+import type { Veiculo, ContaBancaria } from "@/lib/db-types";
 
-interface Props { veiculo: any; onClose: () => void; }
+interface Props { veiculo: Veiculo; onClose: () => void; }
 
 export default function DespesaDialog({ veiculo, onClose }: Props) {
   const { user } = useAuth();
-  const [contas, setContas] = useState<any[]>([]);
+  const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [form, setForm] = useState({
     descricao: "", // Fornecedor / Localizador
     peca_servico: "",
