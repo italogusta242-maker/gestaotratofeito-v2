@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { FileText, Upload, Trash2, Download, MapPin, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
+import { translateError } from "@/lib/supabase-errors";
 
 interface Props {
   veiculo: any;
@@ -66,8 +67,8 @@ export default function VeiculoDossie({ veiculo, onClose, isEmissao }: Props) {
       }
       toast.success("Documento(s) enviado(s)!");
       loadDocs();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(translateError(err as { message?: string }));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -76,7 +77,7 @@ export default function VeiculoDossie({ veiculo, onClose, isEmissao }: Props) {
 
   async function handleDelete(name: string) {
     const { error } = await supabase.storage.from("veiculos-docs").remove([`${veiculo.id}/${name}`]);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(translateError(error)); return; }
     toast.success("Documento removido");
     loadDocs();
   }

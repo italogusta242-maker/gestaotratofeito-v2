@@ -20,6 +20,7 @@ import { formatPlaca, cleanPlaca } from "@/lib/format-placa";
 import { formatBRL, upperCase } from "@/lib/format";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { VeiculoComCentro, CentroCusto } from "@/lib/db-types";
+import { translateError } from "@/lib/supabase-errors";
 
 const STATUSES = ["Em Estoque", "Preparação", "Na Oficina", "No Despachante", "No Pátio", "Consignado", "Vendido"];
 
@@ -109,12 +110,12 @@ export default function Veiculos() {
 
     if (editingVeiculo) {
       const { error } = await supabase.from("veiculos").update(payload).eq("id", editingVeiculo.id);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(translateError(error)); return; }
       toast.success("Veículo atualizado!");
       setEditingVeiculo(null);
     } else {
       const { error } = await supabase.from("veiculos").insert(payload);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(translateError(error)); return; }
       toast.success("Veículo cadastrado!");
       setShowAdd(false);
     }
@@ -140,7 +141,7 @@ export default function Veiculos() {
   async function handleDeleteVeiculo() {
     if (!deleteVeiculo) return;
     const { error } = await supabase.from("veiculos").delete().eq("id", deleteVeiculo.id);
-    if (error) { toast.error("Erro ao excluir: " + error.message); }
+    if (error) { toast.error("Erro ao excluir: " + translateError(error)); }
     else { toast.success(`Veículo ${deleteVeiculo.placa} excluído!`); load(); }
     setDeleteVeiculo(null);
   }

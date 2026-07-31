@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { translateError } from "@/lib/supabase-errors";
 
 interface Props { veiculo: any; onClose: () => void; }
 
@@ -47,7 +48,7 @@ export default function DespesaDialog({ veiculo, onClose }: Props) {
       categoria: form.categoria || "Despesa Veicular",
       user_id: user?.id,
     });
-    if (error) { toast.error(error.message); } else { toast.success("Despesa registrada!"); onClose(); }
+    if (error) { toast.error(translateError(error)); } else { toast.success("Despesa registrada!"); onClose(); }
     setLoading(false);
   }
 

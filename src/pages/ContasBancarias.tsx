@@ -12,6 +12,7 @@ import { Plus, Building2, ArrowRightLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { formatBRL } from "@/lib/format";
 import type { ContaBancaria, Transacao } from "@/lib/db-types";
+import { translateError } from "@/lib/supabase-errors";
 
 export default function ContasBancarias() {
   const [contas, setContas] = useState<ContaBancaria[]>([]);
@@ -43,7 +44,7 @@ export default function ContasBancarias() {
   async function addConta(e: React.FormEvent) {
     e.preventDefault();
     const { error } = await supabase.from("contas_bancarias").insert({ nome: form.nome, tipo: form.tipo, saldo_inicial: parseFloat(form.saldo_inicial) || 0 });
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(translateError(error)); return; }
     toast.success("Conta criada!");
     setShowAdd(false);
     setForm({ nome: "", tipo: "Corrente", saldo_inicial: "" });
@@ -89,7 +90,7 @@ export default function ContasBancarias() {
     ];
 
     const { error } = await supabase.from("transacoes").insert(txsInsert);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(translateError(error)); return; }
 
     toast.success("Transferência realizada com sucesso!");
     setShowTrans(false);

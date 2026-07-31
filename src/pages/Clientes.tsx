@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import type { Cliente } from "@/lib/db-types";
+import { translateError } from "@/lib/supabase-errors";
 
 export default function Clientes() {
   const { role } = useAuth();
@@ -44,12 +45,12 @@ export default function Clientes() {
     const payload = { ...form, email: form.email || null, telefone: form.telefone || null, endereco: form.endereco || null, rg: form.rg || null, estado_civil: form.estado_civil || null, nacionalidade: form.nacionalidade || null, data_nascimento: form.data_nascimento || null };
     if (editing) {
       const { error } = await supabase.from("clientes").update(payload).eq("id", editing.id);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(translateError(error)); return; }
       toast.success("Cliente atualizado!");
       setEditing(null);
     } else {
       const { error } = await supabase.from("clientes").insert(payload);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(translateError(error)); return; }
       toast.success("Cliente cadastrado!");
       setShowAdd(false);
     }
@@ -59,7 +60,7 @@ export default function Clientes() {
   async function handleDelete() {
     if (!deleting) return;
     const { error } = await supabase.from("clientes").delete().eq("id", deleting.id);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(translateError(error)); return; }
     toast.success("Cliente excluído!");
     setDeleting(null);
     load();

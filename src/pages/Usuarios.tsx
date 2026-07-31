@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { translateError } from "@/lib/supabase-errors";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -34,10 +35,10 @@ export default function Usuarios() {
   async function changeRole(userId: string, existingRoleId: string | null, newRole: AppRole) {
     if (existingRoleId) {
       const { error } = await supabase.from("user_roles").update({ role: newRole }).eq("id", existingRoleId);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(translateError(error)); return; }
     } else {
       const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: newRole });
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(translateError(error)); return; }
     }
     toast.success("Perfil atualizado!");
     load();

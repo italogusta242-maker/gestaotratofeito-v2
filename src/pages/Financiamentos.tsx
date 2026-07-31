@@ -15,6 +15,7 @@ import { Plus, Landmark } from "lucide-react";
 import { addMonths, format } from "date-fns";
 import { formatBRL } from "@/lib/format";
 import type { Financiamento, CentroCusto, Veiculo, ContaBancaria, Transacao } from "@/lib/db-types";
+import { translateError } from "@/lib/supabase-errors";
 
 type FinanciamentoComRelacoes = Financiamento & {
   veiculos: { placa: string; marca_modelo: string } | null;
@@ -71,7 +72,7 @@ export default function Financiamentos() {
       centro_custo_id: form.centro_custo_id || null,
       conta_bancaria_id: form.conta_bancaria_id || null,
     }).select().single();
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(translateError(error)); return; }
 
     // Generate all parcels as transacoes
     const inserts = [];

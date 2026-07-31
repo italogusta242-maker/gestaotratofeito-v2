@@ -18,6 +18,7 @@ import VendaDialog from "@/components/VendaDialog";
 import ClienteSelector from "@/components/ClienteSelector";
 import { formatBRL } from "@/lib/format";
 import type { VeiculoComCentro, Cliente, Transacao, CentroCusto } from "@/lib/db-types";
+import { translateError } from "@/lib/supabase-errors";
 
 const statusOptions = ["Em Estoque", "Preparação", "Na Oficina", "No Despachante", "No Pátio", "Consignado", "Vendido"];
 
@@ -120,8 +121,8 @@ export default function VeiculoDetalhe() {
       }
       toast.success("Documento(s) enviado(s)!");
       loadDocs();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(translateError(err as { message?: string }));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -130,14 +131,14 @@ export default function VeiculoDetalhe() {
 
   async function handleDeleteDoc(name: string) {
     const { error } = await supabase.storage.from("veiculos-docs").remove([`${id}/${name}`]);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(translateError(error)); return; }
     toast.success("Documento removido");
     loadDocs();
   }
 
   async function handleDeleteTransacao(txId: string) {
     const { error } = await supabase.from("transacoes").delete().eq("id", txId);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(translateError(error)); return; }
     toast.success("Transação removida");
     loadAll();
   }
@@ -185,7 +186,7 @@ export default function VeiculoDetalhe() {
       cliente_compra_id: editForm.cliente_compra_id || null,
       cliente_venda_id: editForm.cliente_venda_id || null,
     }).eq("id", id!);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(translateError(error)); return; }
     toast.success("Veículo atualizado!");
     setShowEdit(false);
     loadAll();

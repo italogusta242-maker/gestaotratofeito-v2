@@ -13,6 +13,7 @@ import { Plus, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft } from "lucide-rea
 import { format } from "date-fns";
 import { formatBRL } from "@/lib/format";
 import type { Transacao, ContaBancaria, CentroCusto, Veiculo } from "@/lib/db-types";
+import { translateError } from "@/lib/supabase-errors";
 
 type TransacaoComRelacoes = Transacao & {
   centros_custo: { nome: string } | null;
@@ -100,7 +101,7 @@ export default function CaixaDiario() {
       total_parcelas: form.total_parcelas ? parseInt(form.total_parcelas) : null,
       user_id: user?.id,
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(translateError(error)); return; }
     toast.success("Lançamento registrado!");
     setShowForm(false);
     setForm({ descricao: "", valor: "", categoria: "", conta_bancaria_id: "", centro_custo_id: "", veiculo_id: "", parcela_atual: "", total_parcelas: "", status: "Pago" });

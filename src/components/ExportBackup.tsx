@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { translateError } from "@/lib/supabase-errors";
 
 export default function ExportBackup() {
   const [loading, setLoading] = useState(false);
@@ -71,8 +72,8 @@ export default function ExportBackup() {
       const hoje = new Date().toISOString().split("T")[0];
       XLSX.writeFile(wb, `backup_meu_carro_online_${hoje}.xlsx`);
       toast.success("Backup exportado com sucesso!");
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(translateError(err as { message?: string }));
     } finally {
       setLoading(false);
     }

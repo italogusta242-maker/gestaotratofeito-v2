@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import ClienteSelector from "@/components/ClienteSelector";
 import { useAuth } from "@/hooks/useAuth";
+import { translateError } from "@/lib/supabase-errors";
 
 interface Props {
   open: boolean;
@@ -69,7 +70,7 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
       data_entrada_patio: form.data_entrada_patio || new Date().toISOString().split("T")[0],
     }).select("id").single();
     
-    if (error) { toast.error(error.message); setLoading(false); return; }
+    if (error) { toast.error(translateError(error)); setLoading(false); return; }
 
     const valorNum = parseFloat(form.valor_aquisicao) || 0;
     const debitosNum = parseFloat(form.debitos_veiculo) || 0;

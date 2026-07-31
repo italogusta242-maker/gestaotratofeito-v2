@@ -15,6 +15,7 @@ import { Plus, CreditCard } from "lucide-react";
 import { addMonths, format } from "date-fns";
 import { formatBRL } from "@/lib/format";
 import type { Cartao, CentroCusto, Veiculo, ContaBancaria, Transacao } from "@/lib/db-types";
+import { translateError } from "@/lib/supabase-errors";
 
 export default function Cartoes() {
   const { user, role } = useAuth();
@@ -59,7 +60,7 @@ export default function Cartoes() {
       dia_fechamento: parseInt(cartaoForm.dia_fechamento),
       dia_vencimento: parseInt(cartaoForm.dia_vencimento),
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(translateError(error)); return; }
     toast.success("Cartão cadastrado!");
     setShowAddCartao(false);
     setCartaoForm({ nome: "", bandeira: "", limite: "", dia_fechamento: "1", dia_vencimento: "10" });
@@ -94,7 +95,7 @@ export default function Cartoes() {
     }
 
     const { error } = await supabase.from("transacoes").insert(inserts);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(translateError(error)); return; }
     toast.success(`${numParcelas} parcelas geradas com sucesso!`);
     setShowParcela(false);
     setParcelaForm({ descricao: "", valor_total: "", numero_parcelas: "", data_primeiro_vencimento: "", centro_custo_id: "", veiculo_id: "", conta_bancaria_id: "" });

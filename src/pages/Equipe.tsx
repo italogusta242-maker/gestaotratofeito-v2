@@ -14,6 +14,7 @@ import { UserPlus, Trash2, Pencil } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import type { Database } from "@/integrations/supabase/types";
 import type { Profile } from "@/lib/db-types";
+import { translateError } from "@/lib/supabase-errors";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -65,8 +66,8 @@ export default function Equipe() {
       setShowAdd(false);
       setForm({ nome: "", email: "", password: "", role: "auxiliar_operacional" });
       load();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(translateError(err as { message?: string }));
     } finally {
       setLoading(false);
     }
@@ -100,8 +101,8 @@ export default function Equipe() {
       toast.success("Usuário atualizado com sucesso!");
       setEditUser(null);
       load();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(translateError(err as { message?: string }));
     } finally {
       setEditLoading(false);
     }
@@ -110,10 +111,10 @@ export default function Equipe() {
   async function changeRole(userId: string, existingRoleId: string | null, newRole: AppRole) {
     if (existingRoleId) {
       const { error } = await supabase.from("user_roles").update({ role: newRole }).eq("id", existingRoleId);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(translateError(error)); return; }
     } else {
       const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: newRole });
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(translateError(error)); return; }
     }
     toast.success("Perfil atualizado!");
     load();
@@ -130,8 +131,8 @@ export default function Equipe() {
       if (data?.error) throw new Error(data.error);
       toast.success("Membro excluído com sucesso!");
       load();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(translateError(err as { message?: string }));
     } finally {
       setDeleting(null);
     }

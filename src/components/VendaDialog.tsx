@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import ClienteSelector from "@/components/ClienteSelector";
 import NovoVeiculoDialog from "@/components/NovoVeiculoDialog";
 import { Plus, Trash2 } from "lucide-react";
+import { translateError } from "@/lib/supabase-errors";
 
 interface Props { veiculo: any; onClose: () => void; }
 
@@ -119,8 +120,8 @@ export default function VendaDialog({ veiculo, onClose }: Props) {
         toast.success("Venda registrada com sucesso!");
         onClose();
       }
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(translateError(err as { message?: string }));
     } finally {
       setLoading(false);
     }

@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Car } from "lucide-react";
+import { translateError } from "@/lib/supabase-errors";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -18,8 +19,8 @@ export default function Auth() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(translateError(err as { message?: string }));
     } finally {
       setLoading(false);
     }

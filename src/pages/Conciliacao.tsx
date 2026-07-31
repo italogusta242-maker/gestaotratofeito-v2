@@ -16,6 +16,7 @@ import { Upload, Check, X, Plus, Settings, Link2, FilePlus, Search } from "lucid
 import Papa from "papaparse";
 import * as pdfjsLib from "pdfjs-dist";
 import { formatBRL } from "@/lib/format";
+import { translateError } from "@/lib/supabase-errors";
 
 // Configuração do Web Worker do PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.mjs`;
@@ -399,8 +400,8 @@ export default function Conciliacao() {
 
       toast.success(`${selected.length} transações processadas! (${vincular.length} vinculadas, ${criar.length} criadas)`);
       setLines(prev => prev.filter(l => !l.selected || l.acao === "ignorar"));
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(translateError(err as { message?: string }));
     } finally {
       setLoading(false);
     }
@@ -413,7 +414,7 @@ export default function Conciliacao() {
       categoria_sugerida: regraForm.categoria_sugerida || null,
       centro_custo_sugerido: regraForm.centro_custo_sugerido || null,
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(translateError(error)); return; }
     toast.success("Regra criada!");
     setShowAddRegra(false);
     setRegraForm({ palavra_chave: "", categoria_sugerida: "", centro_custo_sugerido: "" });

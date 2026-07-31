@@ -15,6 +15,7 @@ import { Plus, CalendarClock, RefreshCw, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { formatBRL } from "@/lib/format";
 import type { ContaFixa, CentroCusto, ContaBancaria } from "@/lib/db-types";
+import { translateError } from "@/lib/supabase-errors";
 
 type ContaFixaComRelacoes = ContaFixa & {
   centros_custo: { nome: string } | null;
@@ -75,12 +76,12 @@ export default function ContasFixas() {
     };
     if (editing) {
       const { error } = await supabase.from("contas_fixas").update(payload).eq("id", editing.id);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(translateError(error)); return; }
       toast.success("Conta fixa atualizada!");
       setEditing(null);
     } else {
       const { error } = await supabase.from("contas_fixas").insert(payload);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(translateError(error)); return; }
       toast.success("Conta fixa cadastrada!");
       setShowAdd(false);
     }
@@ -131,7 +132,7 @@ export default function ContasFixas() {
       toast.info("Todas as contas fixas deste mês já foram geradas.");
     } else {
       const { error } = await supabase.from("transacoes").insert(inserts);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(translateError(error)); return; }
       toast.success(`${inserts.length} despesa(s) mensal(is) gerada(s) para ${format(now, "MM/yyyy")}!`);
     }
     setGenerating(false);
