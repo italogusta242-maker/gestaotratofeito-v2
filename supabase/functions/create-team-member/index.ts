@@ -5,42 +5,54 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const VALID_ROLES = new Set(["admin", "auxiliar_operacional", "auxiliar_emissao"]);
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Verify caller is admin
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Use admin client to get user from token
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
-    if (userErr || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
+
+    const { data: roleData } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userData.user.id)
+      .single();
+    if (roleData?.role !== "admin") return json({ error: "Forbidden" }, 403);
+
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return json({ error: "Invalid JSON body" }, 400);
     }
 
-    // Check admin role
-    const { data: roleData } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userData.user.id).single();
-    if (roleData?.role !== "admin") {
-      return new Response(JSON.stringify({ error: "Forbidden: admin only" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const password = typeof body.password === "string" ? body.password : "";
+    const nome = typeof body.nome === "string" ? body.nome.trim() : "";
+    const role = typeof body.role === "string" ? body.role : "";
 
-    const { email, password, nome, role } = await req.json();
-    if (!email || !password || !role) {
-      return new Response(JSON.stringify({ error: "Missing email, password or role" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Email inválido" }, 400);
+    if (!password || password.length < 6) return json({ error: "Senha deve ter no mínimo 6 caracteres" }, 400);
+    if (!VALID_ROLES.has(role)) return json({ error: "Role inválida" }, 400);
 
-    // Create user with admin API
     const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -49,23 +61,24 @@ Deno.serve(async (req) => {
     });
 
     if (createErr) {
-      return new Response(JSON.stringify({ error: createErr.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      console.error("createUser failed:", createErr.message);
+      return json({ error: "Não foi possível criar o usuário" }, 400);
     }
 
-    // Assign role
-    const { error: roleErr } = await supabaseAdmin.from("user_roles").insert({
-      user_id: newUser.user.id,
-      role,
-    });
+    const { error: roleErr } = await supabaseAdmin
+      .from("user_roles")
+      .insert({ user_id: newUser.user.id, role });
 
     if (roleErr) {
-      return new Response(JSON.stringify({ error: roleErr.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      console.error("insert role failed:", roleErr.message);
+      // rollback: remove created user
+      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+      return json({ error: "Não foi possível atribuir a role" }, 500);
     }
 
-    return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ success: true, user_id: newUser.user.id });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    console.error("create-team-member fatal:", err instanceof Error ? err.message : String(err));
+    return json({ error: "Erro interno" }, 500);
   }
 });
