@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { FileText, Upload, Trash2, Download, MapPin, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { formatBRL } from "@/lib/format";
 
 interface Props {
   veiculo: any;
@@ -85,7 +86,6 @@ export default function VeiculoDossie({ veiculo, onClose, isEmissao }: Props) {
     return data.publicUrl;
   }
 
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const receitas = transacoes.filter(t => t.tipo === "Receita").reduce((s, t) => s + Number(t.valor), 0);
   const despesas = transacoes.filter(t => t.tipo === "Despesa").reduce((s, t) => s + Number(t.valor), 0);
   const lucro = receitas - Number(veiculo.valor_aquisicao) - despesas;
@@ -126,7 +126,7 @@ export default function VeiculoDossie({ veiculo, onClose, isEmissao }: Props) {
               <span>{localizacao}</span>
             )}
           </div>
-          {!isEmissao && <div><strong>Valor Aquisição:</strong> {fmt(Number(veiculo.valor_aquisicao))}</div>}
+          {!isEmissao && <div><strong>Valor Aquisição:</strong> {formatBRL(Number(veiculo.valor_aquisicao))}</div>}
         </div>
 
         {/* Financial Summary */}
@@ -134,15 +134,15 @@ export default function VeiculoDossie({ veiculo, onClose, isEmissao }: Props) {
           <div className="grid grid-cols-3 gap-3 mt-4">
             <div className="rounded-lg bg-muted p-3 text-center">
               <p className="text-xs text-muted-foreground">Receitas</p>
-              <p className="text-lg font-bold text-emerald-500">{fmt(receitas)}</p>
+              <p className="text-lg font-bold text-emerald-500">{formatBRL(receitas)}</p>
             </div>
             <div className="rounded-lg bg-muted p-3 text-center">
               <p className="text-xs text-muted-foreground">Despesas</p>
-              <p className="text-lg font-bold text-destructive">{fmt(despesas)}</p>
+              <p className="text-lg font-bold text-destructive">{formatBRL(despesas)}</p>
             </div>
             <div className="rounded-lg bg-muted p-3 text-center">
               <p className="text-xs text-muted-foreground">Lucro Real</p>
-              <p className={`text-lg font-bold ${lucro >= 0 ? "text-emerald-500" : "text-destructive"}`}>{fmt(lucro)}</p>
+              <p className={`text-lg font-bold ${lucro >= 0 ? "text-emerald-500" : "text-destructive"}`}>{formatBRL(lucro)}</p>
             </div>
           </div>
         )}
@@ -199,7 +199,7 @@ export default function VeiculoDossie({ veiculo, onClose, isEmissao }: Props) {
                   <span className="text-xs text-muted-foreground ml-2">{format(new Date(tx.created_at), "dd/MM/yyyy")}</span>
                 </div>
                 <span className={tx.tipo === "Receita" ? "text-emerald-500 font-medium" : "text-destructive font-medium"}>
-                  {tx.tipo === "Receita" ? "+" : "-"}{fmt(Number(tx.valor))}
+                  {tx.tipo === "Receita" ? "+" : "-"}{formatBRL(Number(tx.valor))}
                 </span>
               </div>
             ))}

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft } from "lucide-react";
 import { format } from "date-fns";
+import { formatBRL } from "@/lib/format";
 
 export default function CaixaDiario() {
   const { user, role } = useAuth();
@@ -95,8 +96,6 @@ export default function CaixaDiario() {
     loadAll();
   }
 
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
   const pagos = transacoes.filter(t => t.status === "Pago");
   const pendentes = transacoes.filter(t => t.status !== "Pago");
 
@@ -144,8 +143,8 @@ export default function CaixaDiario() {
             <ArrowUpCircle className="h-8 w-8 text-emerald-500" />
             <div>
               <p className="text-sm text-muted-foreground">Entradas (Realizado)</p>
-              <p className="text-xl font-bold text-emerald-500">{fmt(totalReceitasPago)}</p>
-              {totalReceitasPendente > 0 && <p className="text-xs text-muted-foreground mt-1">+{fmt(totalReceitasPendente)} a receber</p>}
+              <p className="text-xl font-bold text-emerald-500">{formatBRL(totalReceitasPago)}</p>
+              {totalReceitasPendente > 0 && <p className="text-xs text-muted-foreground mt-1">+{formatBRL(totalReceitasPendente)} a receber</p>}
             </div>
           </CardContent>
         </Card>
@@ -154,8 +153,8 @@ export default function CaixaDiario() {
             <ArrowDownCircle className="h-8 w-8 text-destructive" />
             <div>
               <p className="text-sm text-muted-foreground">Saídas (Realizado)</p>
-              <p className="text-xl font-bold text-destructive">{fmt(totalDespesasPago)}</p>
-              {totalDespesasPendente > 0 && <p className="text-xs text-muted-foreground mt-1">+{fmt(totalDespesasPendente)} a pagar</p>}
+              <p className="text-xl font-bold text-destructive">{formatBRL(totalDespesasPago)}</p>
+              {totalDespesasPendente > 0 && <p className="text-xs text-muted-foreground mt-1">+{formatBRL(totalDespesasPendente)} a pagar</p>}
             </div>
           </CardContent>
         </Card>
@@ -164,7 +163,7 @@ export default function CaixaDiario() {
             <ArrowRightLeft className="h-8 w-8 text-primary" />
             <div>
               <p className="text-sm text-muted-foreground">Saldo do Período</p>
-              <p className="text-xl font-bold">{fmt(saldoRealizado)}</p>
+              <p className="text-xl font-bold">{formatBRL(saldoRealizado)}</p>
             </div>
           </CardContent>
         </Card>
@@ -192,7 +191,7 @@ export default function CaixaDiario() {
                     </div>
                   </div>
                   <span className={`font-semibold text-sm whitespace-nowrap ${tx.tipo === "Receita" ? "text-emerald-500" : tx.tipo === "Despesa" ? "text-destructive" : "text-primary"}`}>
-                    {tx.tipo === "Receita" ? "+" : tx.tipo === "Despesa" ? "-" : "↔"}{fmt(Number(tx.valor))}
+                    {tx.tipo === "Receita" ? "+" : tx.tipo === "Despesa" ? "-" : "↔"}{formatBRL(Number(tx.valor))}
                   </span>
                 </div>
               ))}
@@ -222,7 +221,7 @@ export default function CaixaDiario() {
                     </div>
                   </div>
                   <span className={`font-semibold text-sm whitespace-nowrap ${tx.tipo === "Receita" ? "text-emerald-500" : tx.tipo === "Despesa" ? "text-destructive" : "text-primary"}`}>
-                    {tx.tipo === "Receita" ? "+" : tx.tipo === "Despesa" ? "-" : "↔"}{fmt(Number(tx.valor))}
+                    {tx.tipo === "Receita" ? "+" : tx.tipo === "Despesa" ? "-" : "↔"}{formatBRL(Number(tx.valor))}
                   </span>
                 </div>
               ))}

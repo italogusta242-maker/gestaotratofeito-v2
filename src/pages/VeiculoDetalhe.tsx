@@ -16,6 +16,7 @@ import { format, differenceInDays } from "date-fns";
 import DespesaDialog from "@/components/DespesaDialog";
 import VendaDialog from "@/components/VendaDialog";
 import ClienteSelector from "@/components/ClienteSelector";
+import { formatBRL } from "@/lib/format";
 
 const statusOptions = ["Em Estoque", "Preparação", "Na Oficina", "No Despachante", "No Pátio", "Consignado", "Vendido"];
 
@@ -188,7 +189,6 @@ export default function VeiculoDetalhe() {
     return <div className="text-center py-20 text-muted-foreground">Veículo não encontrado.</div>;
   }
 
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const custoCompra = Number(veiculo.valor_aquisicao);
   const despesas = transacoes.filter(t => t.tipo === "Despesa").reduce((s, t) => s + Number(t.valor), 0);
   const receitas = transacoes.filter(t => t.tipo === "Receita").reduce((s, t) => s + Number(t.valor), 0);
@@ -300,26 +300,26 @@ export default function VeiculoDetalhe() {
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-xs text-muted-foreground mb-1">Custo de Compra</p>
-              <p className="text-xl font-bold">{fmt(custoCompra)}</p>
+              <p className="text-xl font-bold">{formatBRL(custoCompra)}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-xs text-muted-foreground mb-1">Receitas</p>
-              <p className="text-xl font-bold text-emerald-600">{fmt(receitas)}</p>
+              <p className="text-xl font-bold text-emerald-600">{formatBRL(receitas)}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-xs text-muted-foreground mb-1">Despesas</p>
-              <p className="text-xl font-bold">{fmt(despesas)}</p>
+              <p className="text-xl font-bold">{formatBRL(despesas)}</p>
               <p className="text-xs text-muted-foreground">{transacoes.filter(t => t.tipo === "Despesa").length} lançamento(s)</p>
             </CardContent>
           </Card>
           <Card className="border-primary/20">
             <CardContent className="p-4 text-center">
               <p className="text-xs text-muted-foreground mb-1">Custo Total</p>
-              <p className="text-xl font-bold text-destructive">{fmt(custoTotal)}</p>
+              <p className="text-xl font-bold text-destructive">{formatBRL(custoTotal)}</p>
             </CardContent>
           </Card>
         </div>
@@ -330,7 +330,7 @@ export default function VeiculoDetalhe() {
         <Card className={lucro >= 0 ? "border-emerald-500/30" : "border-destructive/30"}>
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground mb-1">Lucro Real</p>
-            <p className={`text-2xl font-bold ${lucro >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(lucro)}</p>
+            <p className={`text-2xl font-bold ${lucro >= 0 ? "text-emerald-600" : "text-destructive"}`}>{formatBRL(lucro)}</p>
           </CardContent>
         </Card>
       )}
@@ -354,7 +354,7 @@ export default function VeiculoDetalhe() {
                   <Card key={cat}>
                     <CardContent className="p-3 text-center">
                       <p className="text-xs text-muted-foreground mb-1 truncate">{cat}</p>
-                      <p className="text-base font-bold">{fmt(total as number)}</p>
+                      <p className="text-base font-bold">{formatBRL(total as number)}</p>
                     </CardContent>
                   </Card>
                 ))}
@@ -393,7 +393,7 @@ export default function VeiculoDetalhe() {
                       <Badge variant="outline" className="text-xs">{tx.categoria || tx.tipo}</Badge>
                     </TableCell>
                     <TableCell className={tx.tipo === "Receita" ? "text-emerald-600 font-medium" : "font-medium"}>
-                      {fmt(Number(tx.valor))}
+                      {formatBRL(Number(tx.valor))}
                     </TableCell>
                     <TableCell>{format(new Date(tx.created_at), "dd/MM/yyyy")}</TableCell>
                     {canWrite && (
@@ -434,7 +434,7 @@ export default function VeiculoDetalhe() {
                     <TableRow key={tx.id}>
                       <TableCell className="font-medium">{tx.descricao}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs">{tx.categoria || "Receita"}</Badge></TableCell>
-                      <TableCell className="text-emerald-600 font-medium">{fmt(Number(tx.valor))}</TableCell>
+                      <TableCell className="text-emerald-600 font-medium">{formatBRL(Number(tx.valor))}</TableCell>
                       <TableCell>{format(new Date(tx.created_at), "dd/MM/yyyy")}</TableCell>
                     </TableRow>
                   ))}

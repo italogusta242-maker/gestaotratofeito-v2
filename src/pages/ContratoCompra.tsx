@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatBRL } from "@/lib/format";
 
 export default function ContratoCompra() {
   const navigate = useNavigate();
@@ -48,7 +49,6 @@ export default function ContratoCompra() {
   if (!veiculo) return <div className="flex items-center justify-center min-h-screen">Veículo não encontrado.</div>;
 
   const hoje = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const totalDespesas = despesas.reduce((s, d) => s + Number(d.valor), 0);
   const valorBruto = Number(veiculo.valor_aquisicao);
   const valorLiquido = valorBruto - totalDespesas;
@@ -120,12 +120,12 @@ export default function ContratoCompra() {
             <tbody>
               <tr className="border-b border-black">
                 <td className="p-2 font-semibold border-r border-black w-1/2">1. Valor Bruto Negociado:</td>
-                <td className="p-2">{fmt(valorBruto)}</td>
+                <td className="p-2">{formatBRL(valorBruto)}</td>
               </tr>
               {despesas.map((d, i) => (
                 <tr key={d.id} className="border-b border-black">
                   <td className="p-2 border-r border-black pl-6">Dedução {i + 1}: {d.descricao}</td>
-                  <td className="p-2">{fmt(Number(d.valor))}</td>
+                  <td className="p-2">{formatBRL(Number(d.valor))}</td>
                 </tr>
               ))}
               {despesas.length === 0 && (
@@ -136,11 +136,11 @@ export default function ContratoCompra() {
               )}
               <tr className="border-b border-black">
                 <td className="p-2 font-semibold border-r border-black">2. Total de Deduções:</td>
-                <td className="p-2 font-semibold">{fmt(totalDespesas)}</td>
+                <td className="p-2 font-semibold">{formatBRL(totalDespesas)}</td>
               </tr>
               <tr>
                 <td className="p-2 font-bold border-r border-black">3. Valor Líquido:</td>
-                <td className="p-2 font-bold">{fmt(valorLiquido)}</td>
+                <td className="p-2 font-bold">{formatBRL(valorLiquido)}</td>
               </tr>
             </tbody>
           </table>

@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import ExportBackup from "@/components/ExportBackup";
 import { format, startOfMonth, endOfMonth, subWeeks, startOfWeek, endOfWeek, isAfter, isBefore, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatBRL } from "@/lib/format";
 
 // Centros são resolvidos por nome no runtime (evita hardcode de UUIDs)
 const CENTRO_NOMES = {
@@ -19,8 +20,6 @@ const CENTRO_NOMES = {
 } as const;
 
 type TabKey = "tudo" | "escritorio" | "trato" | "casa";
-
-const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default function Dashboard() {
   const { role } = useAuth();
@@ -177,7 +176,7 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{filtered.qtdEstoque}</div>
-                  <p className="text-xs text-muted-foreground">{fmt(filtered.valorEstoque)} investido</p>
+                  <p className="text-xs text-muted-foreground">{formatBRL(filtered.valorEstoque)} investido</p>
                 </CardContent>
               </Card>
             )}
@@ -188,7 +187,7 @@ export default function Dashboard() {
                 <TrendingUp className="h-5 w-5 text-emerald-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-emerald-500">{fmt(filtered.receitasMes)}</div>
+                <div className="text-2xl font-bold text-emerald-500">{formatBRL(filtered.receitasMes)}</div>
               </CardContent>
             </Card>
 
@@ -198,10 +197,10 @@ export default function Dashboard() {
                 <TrendingDown className="h-5 w-5 text-destructive" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-destructive">{fmt(filtered.despesasMes)}</div>
+                <div className="text-2xl font-bold text-destructive">{formatBRL(filtered.despesasMes)}</div>
                 {filtered.custoFixoMes > 0 && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <CalendarClock className="h-3 w-3" /> {fmt(filtered.custoFixoMes)} fixos
+                    <CalendarClock className="h-3 w-3" /> {formatBRL(filtered.custoFixoMes)} fixos
                   </p>
                 )}
               </CardContent>
@@ -216,10 +215,10 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className={`text-2xl font-bold ${filtered.lucroMes >= 0 ? "text-emerald-500" : "text-destructive"}`}>
-                  {fmt(activeTab === "tudo" ? filtered.saldoProjetado : filtered.lucroMes)}
+                  {formatBRL(activeTab === "tudo" ? filtered.saldoProjetado : filtered.lucroMes)}
                 </div>
                 {activeTab === "tudo" && (
-                  <p className="text-xs text-muted-foreground">Saldo atual: {fmt(filtered.saldoTotal)}</p>
+                  <p className="text-xs text-muted-foreground">Saldo atual: {formatBRL(filtered.saldoTotal)}</p>
                 )}
               </CardContent>
             </Card>
@@ -231,7 +230,7 @@ export default function Dashboard() {
               {saldosBancarios.map(b => (
                 <Card key={b.nome} className="p-3">
                   <p className="text-xs text-muted-foreground truncate">{b.nome}</p>
-                  <p className={`text-sm font-bold ${b.saldo >= 0 ? "text-emerald-500" : "text-destructive"}`}>{fmt(b.saldo)}</p>
+                  <p className={`text-sm font-bold ${b.saldo >= 0 ? "text-emerald-500" : "text-destructive"}`}>{formatBRL(b.saldo)}</p>
                 </Card>
               ))}
             </div>
@@ -247,7 +246,7 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" fontSize={12} />
                     <YAxis fontSize={12} />
-                    <Tooltip formatter={(v: number) => fmt(v)} />
+                    <Tooltip formatter={(v: number) => formatBRL(v)} />
                     <Legend />
                     <Bar dataKey="receitas" name="Receitas Realizadas" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="despesas" name="Despesas Realizadas" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
@@ -275,7 +274,7 @@ export default function Dashboard() {
                         <Cell key={`cell-${index}`} fill={`hsl(${(index * 45) % 360}, 70%, 50%)`} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: number) => fmt(v)} />
+                    <Tooltip formatter={(v: number) => formatBRL(v)} />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -293,7 +292,7 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" fontSize={12} />
                   <YAxis fontSize={12} />
-                  <Tooltip formatter={(v: number) => fmt(v)} />
+                  <Tooltip formatter={(v: number) => formatBRL(v)} />
                   <Legend />
                   <Bar dataKey="entradas" name="Entradas" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="saidas" name="Saídas" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
@@ -324,7 +323,7 @@ export default function Dashboard() {
                       <TableRow key={tx.id} className="text-destructive">
                         <TableCell className="text-sm font-medium">{tx.descricao}</TableCell>
                         <TableCell className="text-sm">{format(parseISO(tx.data_vencimento), "dd/MM/yyyy")}</TableCell>
-                        <TableCell className="text-sm font-bold">{fmt(Number(tx.valor))}</TableCell>
+                        <TableCell className="text-sm font-bold">{formatBRL(Number(tx.valor))}</TableCell>
                       </TableRow>
                     ))}
                     {filtered.atrasados.length === 0 && (
@@ -356,7 +355,7 @@ export default function Dashboard() {
                       <TableRow key={tx.id}>
                         <TableCell className="text-sm font-medium">{tx.descricao}</TableCell>
                         <TableCell className="text-sm">{format(parseISO(tx.data_vencimento), "dd/MM/yyyy")}</TableCell>
-                        <TableCell className="text-sm font-bold">{fmt(Number(tx.valor))}</TableCell>
+                        <TableCell className="text-sm font-bold">{formatBRL(Number(tx.valor))}</TableCell>
                         <TableCell>
                           <Badge variant={tx.tipo === "Receita" ? "default" : "destructive"} className="text-xs">{tx.tipo}</Badge>
                         </TableCell>

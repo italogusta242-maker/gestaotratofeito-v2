@@ -12,6 +12,23 @@ export default defineConfig(() => ({
       overlay: false,
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-supabase": ["@supabase/supabase-js"],
+          "vendor-charts": ["recharts"],
+          "vendor-datefns": ["date-fns"],
+          "vendor-xlsx": ["xlsx"],
+          "vendor-pdf": ["pdfjs-dist"],
+          "vendor-forms": ["react-hook-form", "@hookform/resolvers", "zod"],
+          "vendor-query": ["@tanstack/react-query"],
+          "vendor-papaparse": ["papaparse"],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

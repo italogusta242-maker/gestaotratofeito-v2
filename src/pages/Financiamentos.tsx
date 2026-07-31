@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Plus, Landmark } from "lucide-react";
 import { addMonths, format } from "date-fns";
+import { formatBRL } from "@/lib/format";
 
 export default function Financiamentos() {
   const { user, role } = useAuth();
@@ -126,8 +127,6 @@ export default function Financiamentos() {
     if (selected) selectFin(selected);
   }
 
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -193,14 +192,14 @@ export default function Financiamentos() {
                   </div>
                   <div className="text-right">
                     <Badge variant={f.status === "Quitado" ? "default" : "outline"}>{f.status}</Badge>
-                    <p className="text-sm font-medium mt-1">{fmt(Number(f.valor_parcela))} × {f.total_parcelas}x</p>
+                    <p className="text-sm font-medium mt-1">{formatBRL(Number(f.valor_parcela))} × {f.total_parcelas}x</p>
                   </div>
                 </div>
                 {selected?.id === f.id && (
                   <div className="mt-3">
                     <div className="flex justify-between text-xs text-muted-foreground mb-1">
                       <span>{pagas}/{f.total_parcelas} pagas</span>
-                      <span>Saldo: {fmt(saldoDevedor)}</span>
+                      <span>Saldo: {formatBRL(saldoDevedor)}</span>
                     </div>
                     <Progress value={pct} className="h-2" />
                   </div>
@@ -223,7 +222,7 @@ export default function Financiamentos() {
                   <DialogHeader><DialogTitle>Antecipar Parcelas</DialogTitle></DialogHeader>
                   <div className="space-y-3">
                     <div><Label>Quantas parcelas antecipar?</Label><Input type="number" min="1" max={parcelas.filter(p => p.status === "Pendente").length} value={qtdAntecipar} onChange={(e) => setQtdAntecipar(e.target.value)} /></div>
-                    <p className="text-sm text-muted-foreground">Valor total: {fmt(Number(selected.valor_parcela) * parseInt(qtdAntecipar || "0"))}</p>
+                    <p className="text-sm text-muted-foreground">Valor total: {formatBRL(Number(selected.valor_parcela) * parseInt(qtdAntecipar || "0"))}</p>
                     <Button onClick={anteciparParcelas} className="w-full">Confirmar Antecipação</Button>
                   </div>
                 </DialogContent>
@@ -246,7 +245,7 @@ export default function Financiamentos() {
                   <TableRow key={p.id}>
                     <TableCell className="text-sm">{p.parcela_atual}/{p.total_parcelas}</TableCell>
                     <TableCell className="text-sm">{format(new Date(p.data_vencimento + "T12:00:00"), "dd/MM/yyyy")}</TableCell>
-                    <TableCell className="text-sm font-medium">{fmt(Number(p.valor))}</TableCell>
+                    <TableCell className="text-sm font-medium">{formatBRL(Number(p.valor))}</TableCell>
                     <TableCell>
                       <Badge variant={p.status === "Pago" ? "default" : new Date(p.data_vencimento) < new Date() ? "destructive" : "outline"}>
                         {p.status === "Pendente" && new Date(p.data_vencimento) < new Date() ? "Atrasado" : p.status}

@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Upload, Check, X, Plus, Settings, Link2, FilePlus, Search } from "lucide-react";
 import Papa from "papaparse";
 import * as pdfjsLib from "pdfjs-dist";
+import { formatBRL } from "@/lib/format";
 
 // Configuração do Web Worker do PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.mjs`;
@@ -424,8 +425,6 @@ export default function Conciliacao() {
     loadMeta();
   }
 
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
   const acaoLabel: Record<string, string> = { criar: "Criar Nova", vincular: "Vinculada ✓", ignorar: "Ignorar" };
   const acaoColor: Record<string, string> = { criar: "", vincular: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", ignorar: "bg-muted text-muted-foreground" };
 
@@ -497,7 +496,7 @@ export default function Conciliacao() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm font-medium">{fmt(l.valor)}</TableCell>
+                        <TableCell className="text-sm font-medium">{formatBRL(l.valor)}</TableCell>
                         <TableCell>
                           <Badge variant={l.tipo === "Receita" ? "secondary" : "destructive"}>{l.tipo}</Badge>
                         </TableCell>
@@ -581,7 +580,7 @@ export default function Conciliacao() {
           {matchIdx !== null && (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                Extrato: <strong>{lines[matchIdx]?.descricao}</strong> — {fmt(lines[matchIdx]?.valor ?? 0)}
+                Extrato: <strong>{lines[matchIdx]?.descricao}</strong> — {formatBRL(lines[matchIdx]?.valor ?? 0)}
               </p>
               <div className="flex gap-2">
                 <Input placeholder="Buscar por descrição..." value={matchSearch} onChange={e => setMatchSearch(e.target.value)} className="flex-1" />
@@ -610,7 +609,7 @@ export default function Conciliacao() {
                         <p className="text-sm font-medium truncate max-w-[250px]">{tx.descricao}</p>
                         <p className="text-xs text-muted-foreground">{tx.data_vencimento} • {tx.status} • {tx.categoria ?? "—"}</p>
                       </div>
-                      <span className="text-sm font-bold">{fmt(tx.valor)}</span>
+                      <span className="text-sm font-bold">{formatBRL(tx.valor)}</span>
                     </div>
                   ))}
                 </div>
@@ -629,7 +628,7 @@ export default function Conciliacao() {
           {createIdx !== null && (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                {lines[createIdx]?.descricao} — {fmt(lines[createIdx]?.valor ?? 0)}
+                {lines[createIdx]?.descricao} — {formatBRL(lines[createIdx]?.valor ?? 0)}
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>

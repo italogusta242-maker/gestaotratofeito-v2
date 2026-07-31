@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, CalendarClock, RefreshCw, Pencil } from "lucide-react";
 import { format } from "date-fns";
+import { formatBRL } from "@/lib/format";
 
 export default function ContasFixas() {
   const { user, role } = useAuth();
@@ -130,8 +131,6 @@ export default function ContasFixas() {
     setGenerating(false);
   }
 
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
   const formFields = (
     <form onSubmit={handleSave} className="space-y-3">
       <div><Label>Descrição</Label><Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} required /></div>
@@ -193,7 +192,7 @@ export default function ContasFixas() {
               {contasFixas.map(cf => (
                 <TableRow key={cf.id}>
                   <TableCell className="font-medium">{cf.descricao}</TableCell>
-                  <TableCell>{fmt(Number(cf.valor))}</TableCell>
+                  <TableCell>{formatBRL(Number(cf.valor))}</TableCell>
                   <TableCell>Dia {cf.dia_vencimento}</TableCell>
                   <TableCell>{cf.centros_custo?.nome ?? "—"}</TableCell>
                   <TableCell>{cf.contas_bancarias?.nome ?? "—"}</TableCell>

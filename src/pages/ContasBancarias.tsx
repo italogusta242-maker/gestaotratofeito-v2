@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { Plus, Building2, ArrowRightLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { formatBRL } from "@/lib/format";
 
 export default function ContasBancarias() {
   const [contas, setContas] = useState<any[]>([]);
@@ -47,8 +48,6 @@ export default function ContasBancarias() {
     setForm({ nome: "", tipo: "Corrente", saldo_inicial: "" });
     load();
   }
-
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   function calcSaldo(conta: any) {
     const movements = allTxs.filter(t => t.conta_bancaria_id === conta.id);
@@ -160,7 +159,7 @@ export default function ContasBancarias() {
               <div>
                 <p className="font-semibold">{c.nome}</p>
                 <p className="text-xs text-muted-foreground">{c.tipo}</p>
-                <p className="text-lg font-bold">{fmt(calcSaldo(c))}</p>
+                <p className="text-lg font-bold">{formatBRL(calcSaldo(c))}</p>
               </div>
             </CardContent>
           </Card>
@@ -177,7 +176,7 @@ export default function ContasBancarias() {
                 <div key={tx.id} className="flex justify-between items-center py-1.5 border-b text-sm">
                   <span>{tx.descricao}</span>
                   <span className={tx.tipo === "Receita" || Number(tx.valor) > 0 ? "text-emerald-500 font-medium" : "text-destructive font-medium"}>
-                    {Number(tx.valor) > 0 ? "+" : ""}{fmt(Number(tx.valor))}
+                    {Number(tx.valor) > 0 ? "+" : ""}{formatBRL(Number(tx.valor))}
                   </span>
                 </div>
               ))}

@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import logoTratoFeito from "@/assets/logo-trato-feito.png";
+import { formatBRL } from "@/lib/format";
 
 interface GenericReceiptProps {
     transacao: any;
@@ -10,7 +11,6 @@ interface GenericReceiptProps {
 export default function GenericReceipt({ transacao, veiculo }: GenericReceiptProps) {
     if (!transacao) return null;
 
-    const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     const dataExtenso = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
     const isReceita = transacao.tipo === "Receita";
@@ -30,12 +30,12 @@ export default function GenericReceipt({ transacao, veiculo }: GenericReceiptPro
             <div className="space-y-8 text-lg leading-relaxed">
                 <div className="flex justify-between items-center bg-gray-50 p-4 border rounded">
                     <span className="font-bold text-xl uppercase">Valor:</span>
-                    <span className="font-bold text-2xl">{fmt(Number(transacao.valor))}</span>
+                    <span className="font-bold text-2xl">{formatBRL(Number(transacao.valor))}</span>
                 </div>
 
                 <p className="text-justify">
                     {acaoOriginal} <strong>{transacao.favorecido_pagador?.toUpperCase() || "_________________________________"}</strong>,
-                    a quantia supra de <strong>{fmt(Number(transacao.valor))}</strong>,
+                    a quantia supra de <strong>{formatBRL(Number(transacao.valor))}</strong>,
                     referente a: <strong>{transacao.descricao}</strong>.
                 </p>
 

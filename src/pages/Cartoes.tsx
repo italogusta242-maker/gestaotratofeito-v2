@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Plus, CreditCard } from "lucide-react";
 import { addMonths, format } from "date-fns";
+import { formatBRL } from "@/lib/format";
 
 export default function Cartoes() {
   const { user, role } = useAuth();
@@ -112,8 +113,6 @@ export default function Cartoes() {
     if (selectedCartao) loadParcelas(selectedCartao.id);
   }
 
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -189,7 +188,7 @@ export default function Cartoes() {
               <div>
                 <p className="font-semibold">{c.nome}</p>
                 <p className="text-xs text-muted-foreground">{c.bandeira ?? ""} • Fech. dia {c.dia_fechamento} • Venc. dia {c.dia_vencimento}</p>
-                {c.limite > 0 && <p className="text-xs text-muted-foreground">Limite: {fmt(Number(c.limite))}</p>}
+                {c.limite > 0 && <p className="text-xs text-muted-foreground">Limite: {formatBRL(Number(c.limite))}</p>}
               </div>
             </CardContent>
           </Card>
@@ -218,7 +217,7 @@ export default function Cartoes() {
                     <TableCell className="text-sm">{p.descricao}</TableCell>
                     <TableCell className="text-sm">{p.parcela_atual}/{p.total_parcelas}</TableCell>
                     <TableCell className="text-sm">{format(new Date(p.data_vencimento + "T12:00:00"), "dd/MM/yyyy")}</TableCell>
-                    <TableCell className="text-sm font-medium">{fmt(Number(p.valor))}</TableCell>
+                    <TableCell className="text-sm font-medium">{formatBRL(Number(p.valor))}</TableCell>
                     <TableCell>
                       <Badge variant={p.status === "Pago" ? "default" : new Date(p.data_vencimento) < new Date() ? "destructive" : "outline"}>
                         {p.status === "Pendente" && new Date(p.data_vencimento) < new Date() ? "Atrasado" : p.status}

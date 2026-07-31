@@ -17,6 +17,7 @@ import VendaDialog from "@/components/VendaDialog";
 import ClienteSelector from "@/components/ClienteSelector";
 import { differenceInDays } from "date-fns";
 import { formatPlaca, cleanPlaca } from "@/lib/format-placa";
+import { formatBRL, upperCase } from "@/lib/format";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const STATUSES = ["Em Estoque", "Preparação", "Na Oficina", "No Despachante", "No Pátio", "Consignado", "Vendido"];
@@ -59,8 +60,6 @@ export default function Veiculos() {
     setVeiculos(v.data ?? []);
     setCentros(c.data ?? []);
   }
-
-  const upper = (v: string) => v.toUpperCase();
 
   function handlePlacaChange(value: string) {
     const formatted = formatPlaca(value);
@@ -147,7 +146,6 @@ export default function Veiculos() {
 
   const canWrite = role === "admin" || role === "auxiliar_operacional";
   const isEmissao = role === "auxiliar_emissao";
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   function getDiasPatio(v: any) {
     const dataEntrada = v.data_entrada_patio ? new Date(v.data_entrada_patio) : new Date(v.created_at);
@@ -202,12 +200,12 @@ export default function Veiculos() {
                       <Label>Placa</Label>
                       <Input value={form.placa} onChange={(e) => handlePlacaChange(e.target.value)} required placeholder="ABC-1D23" maxLength={8} className="uppercase" />
                     </div>
-                    <div><Label>Marca/Modelo</Label><Input value={form.marca_modelo} onChange={(e) => setForm({ ...form, marca_modelo: upper(e.target.value) })} required className="uppercase" /></div>
+                    <div><Label>Marca/Modelo</Label><Input value={form.marca_modelo} onChange={(e) => setForm({ ...form, marca_modelo: upperCase(e.target.value) })} required className="uppercase" /></div>
                     <div><Label>Ano Fabricação</Label><Input value={form.ano} onChange={(e) => setForm({ ...form, ano: e.target.value })} required placeholder="2020" /></div>
                     <div><Label>Ano Modelo</Label><Input value={form.ano_modelo} onChange={(e) => setForm({ ...form, ano_modelo: e.target.value })} placeholder="2021" /></div>
-                    <div><Label>Cor</Label><Input value={form.cor} onChange={(e) => setForm({ ...form, cor: upper(e.target.value) })} className="uppercase" /></div>
+                    <div><Label>Cor</Label><Input value={form.cor} onChange={(e) => setForm({ ...form, cor: upperCase(e.target.value) })} className="uppercase" /></div>
                     <div><Label>Renavam</Label><Input value={form.renavam} onChange={(e) => setForm({ ...form, renavam: e.target.value })} /></div>
-                    <div><Label>Chassi</Label><Input value={form.chassi} onChange={(e) => setForm({ ...form, chassi: upper(e.target.value) })} className="uppercase" /></div>
+                    <div><Label>Chassi</Label><Input value={form.chassi} onChange={(e) => setForm({ ...form, chassi: upperCase(e.target.value) })} className="uppercase" /></div>
                     <div>
                       <Label>Combustível</Label>
                       <Select value={form.combustivel} onValueChange={(v) => setForm({ ...form, combustivel: v })}>
@@ -307,8 +305,8 @@ export default function Veiculos() {
                           </div>
                           {!isEmissao && (
                             <div className="flex justify-between items-center text-[10px]">
-                              <span className="text-muted-foreground">C: {fmt(Number(v.valor_aquisicao))}</span>
-                              <span className="font-semibold text-emerald-600">V: {(v as any).valor_venda ? fmt(Number((v as any).valor_venda)) : "—"}</span>
+                              <span className="text-muted-foreground">C: {formatBRL(Number(v.valor_aquisicao))}</span>
+                              <span className="font-semibold text-emerald-600">V: {(v as any).valor_venda ? formatBRL(Number((v as any).valor_venda)) : "—"}</span>
                             </div>
                           )}
                           <div className="flex gap-0.5 pt-0.5" onClick={e => e.stopPropagation()}>
@@ -373,8 +371,8 @@ export default function Veiculos() {
                   <TableCell className="text-sm">{v.ano}{(v.ano_modelo && v.ano_modelo !== v.ano) ? `/${v.ano_modelo.slice(-2)}` : ""}</TableCell>
                   <TableCell><StatusBadge status={v.status} /></TableCell>
                   <TableCell className="text-sm flex items-center gap-1"><MapPin className="h-3 w-3 text-muted-foreground" />{v.localizacao || "—"}</TableCell>
-                  {!isEmissao && <TableCell className="text-sm text-right font-medium text-muted-foreground">{fmt(Number(v.valor_aquisicao))}</TableCell>}
-                  {!isEmissao && <TableCell className="text-sm text-right font-semibold text-emerald-600">{(v as any).valor_venda ? fmt(Number((v as any).valor_venda)) : "—"}</TableCell>}
+                  {!isEmissao && <TableCell className="text-sm text-right font-medium text-muted-foreground">{formatBRL(Number(v.valor_aquisicao))}</TableCell>}
+                  {!isEmissao && <TableCell className="text-sm text-right font-semibold text-emerald-600">{(v as any).valor_venda ? formatBRL(Number((v as any).valor_venda)) : "—"}</TableCell>}
                   <TableCell onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-center gap-0.5">
                       {canWrite && v.status !== "Vendido" && (
@@ -449,10 +447,10 @@ export default function Veiculos() {
                   <Label>Placa</Label>
                   <Input value={form.placa} onChange={(e) => handlePlacaChange(e.target.value)} required className="uppercase" />
                 </div>
-                <div><Label>Marca/Modelo</Label><Input value={form.marca_modelo} onChange={(e) => setForm({ ...form, marca_modelo: upper(e.target.value) })} required className="uppercase" /></div>
+                <div><Label>Marca/Modelo</Label><Input value={form.marca_modelo} onChange={(e) => setForm({ ...form, marca_modelo: upperCase(e.target.value) })} required className="uppercase" /></div>
                 <div><Label>Ano Fabricação</Label><Input value={form.ano} onChange={(e) => setForm({ ...form, ano: e.target.value })} required /></div>
                 <div><Label>Ano Modelo</Label><Input value={form.ano_modelo} onChange={(e) => setForm({ ...form, ano_modelo: e.target.value })} /></div>
-                <div><Label>Cor</Label><Input value={form.cor} onChange={(e) => setForm({ ...form, cor: upper(e.target.value) })} className="uppercase" /></div>
+                <div><Label>Cor</Label><Input value={form.cor} onChange={(e) => setForm({ ...form, cor: upperCase(e.target.value) })} className="uppercase" /></div>
                 <div><Label>Status</Label>
                   <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>

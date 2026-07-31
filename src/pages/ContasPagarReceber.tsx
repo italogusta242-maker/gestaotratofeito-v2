@@ -11,6 +11,7 @@ import { AlertCircle, CheckCircle, Clock, DollarSign, Undo2, Printer, X, Receipt
 import { format, isToday, isBefore, startOfDay, differenceInDays, parseISO } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import GenericReceipt from "@/components/GenericReceipt";
+import { formatBRL } from "@/lib/format";
 
 export default function ContasPagarReceber() {
   const [transacoes, setTransacoes] = useState<any[]>([]);
@@ -47,8 +48,6 @@ export default function ContasPagarReceber() {
     toast.success("Pagamento estornado!");
     load();
   }
-
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   function calculateLateCharges(valor: number, vencimento: string) {
     const dVenc = startOfDay(parseISO(vencimento));
@@ -99,10 +98,10 @@ export default function ContasPagarReceber() {
       <h1 className="text-2xl font-bold">Contas a Pagar / Receber</h1>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card><CardContent className="flex items-center gap-3 p-4"><AlertCircle className="h-6 w-6 text-destructive" /><div><p className="text-xs text-muted-foreground">A Pagar</p><p className="text-lg font-bold text-destructive">{fmt(totalPagar)}</p></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 p-4"><DollarSign className="h-6 w-6 text-emerald-500" /><div><p className="text-xs text-muted-foreground">A Receber</p><p className="text-lg font-bold text-emerald-500">{fmt(totalReceber)}</p></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 p-4"><Clock className="h-6 w-6 text-amber-500" /><div><p className="text-xs text-muted-foreground">Vence Hoje</p><p className="text-lg font-bold text-amber-500">{fmt(totalHoje)}</p></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 p-4"><AlertCircle className="h-6 w-6 text-destructive" /><div><p className="text-xs text-muted-foreground">Atrasado</p><p className="text-lg font-bold text-destructive">{fmt(totalAtrasado)}</p></div></CardContent></Card>
+        <Card><CardContent className="flex items-center gap-3 p-4"><AlertCircle className="h-6 w-6 text-destructive" /><div><p className="text-xs text-muted-foreground">A Pagar</p><p className="text-lg font-bold text-destructive">{formatBRL(totalPagar)}</p></div></CardContent></Card>
+        <Card><CardContent className="flex items-center gap-3 p-4"><DollarSign className="h-6 w-6 text-emerald-500" /><div><p className="text-xs text-muted-foreground">A Receber</p><p className="text-lg font-bold text-emerald-500">{formatBRL(totalReceber)}</p></div></CardContent></Card>
+        <Card><CardContent className="flex items-center gap-3 p-4"><Clock className="h-6 w-6 text-amber-500" /><div><p className="text-xs text-muted-foreground">Vence Hoje</p><p className="text-lg font-bold text-amber-500">{formatBRL(totalHoje)}</p></div></CardContent></Card>
+        <Card><CardContent className="flex items-center gap-3 p-4"><AlertCircle className="h-6 w-6 text-destructive" /><div><p className="text-xs text-muted-foreground">Atrasado</p><p className="text-lg font-bold text-destructive">{formatBRL(totalAtrasado)}</p></div></CardContent></Card>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -176,13 +175,13 @@ export default function ContasPagarReceber() {
                             </TableCell>
                             <TableCell className="text-sm">{format(new Date(tx.data_vencimento + "T12:00:00"), "dd/MM/yy")}</TableCell>
                             {tab === "historico" && <TableCell className="text-sm">{tx.data_pagamento ? format(new Date(tx.data_pagamento + "T12:00:00"), "dd/MM/yy") : "—"}</TableCell>}
-                            <TableCell className="text-sm font-semibold">{fmt(Number(tx.valor))}</TableCell>
+                            <TableCell className="text-sm font-semibold">{formatBRL(Number(tx.valor))}</TableCell>
                             {tab === "pendentes" && (
                               <TableCell className="text-xs">
                                 {charges.multa > 0 ? (
                                   <div className="flex flex-col text-destructive font-medium">
-                                    <span>+{fmt(charges.multa)} (2%)</span>
-                                    <span>+{fmt(charges.juros)} (juros)</span>
+                                    <span>+{formatBRL(charges.multa)} (2%)</span>
+                                    <span>+{formatBRL(charges.juros)} (juros)</span>
                                   </div>
                                 ) : "—"}
                               </TableCell>

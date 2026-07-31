@@ -31,7 +31,6 @@ export default function ContratoVenda() {
   if (!veiculo) return <div className="flex items-center justify-center min-h-screen">Veículo não encontrado.</div>;
 
   const hoje = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const anoDisplay = veiculo.ano_modelo && veiculo.ano_modelo !== veiculo.ano ? `${veiculo.ano}/${veiculo.ano_modelo}` : veiculo.ano;
 
   return (

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft } from "lucide-react";
 import logoTratoFeito from "@/assets/logo-trato-feito.png";
+import { formatBRL } from "@/lib/format";
 
 export default function Recibo() {
   const navigate = useNavigate();
@@ -28,8 +29,6 @@ export default function Recibo() {
   }, [id]);
 
   if (!veiculo) return <div className="p-8 text-center text-muted-foreground">Carregando...</div>;
-
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   return (
     <div className="max-w-2xl mx-auto p-8 bg-white min-h-screen">
@@ -67,7 +66,7 @@ export default function Recibo() {
           <div>
             <h2 className="text-sm font-semibold border-b border-gray-200 pb-1 mb-3 text-gray-700 uppercase">Informações da Venda</h2>
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><span className="font-semibold">Valor da Venda:</span> {fmt(Number(vendaTx.valor))}</div>
+              <div><span className="font-semibold">Valor da Venda:</span> {formatBRL(Number(vendaTx.valor))}</div>
               <div><span className="font-semibold">Data:</span> {vendaTx.data_pagamento ?? vendaTx.data_vencimento}</div>
             </div>
           </div>
