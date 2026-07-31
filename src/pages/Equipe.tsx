@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,7 +27,7 @@ const roleLabels: Record<string, string> = {
 };
 
 export default function Equipe() {
-  const { session, user } = useAuth();
+  const { user } = useAuth();
   const [users, setUsers] = useState<EquipeUser[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -39,21 +39,26 @@ export default function Equipe() {
   const [editForm, setEditForm] = useState({ nome: "", email: "", password: "" });
   const [editLoading, setEditLoading] = useState(false);
 
-  useEffect(() => { load(); }, []);
-
-  async function load() {
-    const { data: profiles } = await supabase.from("profiles").select("*");
-    const { data: roles } = await supabase.from("user_roles").select("*");
-    const merged = (profiles ?? []).map(p => ({
-      ...p,
-      role: (roles ?? []).find(r => r.user_id === p.id)?.role ?? null,
-      role_id: (roles ?? []).find(r => r.user_id === p.id)?.id ?? null,
-    }));
+  const load = useCallback(async () => {
+    const [profilesRes, rolesRes] = await Promise.all([
+      supabase.from("profiles").select("*"),
+      supabase.from("user_roles").select("*"),
+    ]);
+    if (profilesRes.error) { console.error("profiles:", profilesRes.error); toast.error("Falha ao carregar perfis"); }
+    if (rolesRes.error) console.error("user_roles:", rolesRes.error);
+    const rolesByUser = new Map((rolesRes.data ?? []).map((r) => [r.user_id, r]));
+    const merged = (profilesRes.data ?? []).map((p) => {
+      const r = rolesByUser.get(p.id);
+      return { ...p, role: r?.role ?? null, role_id: r?.id ?? null };
+    });
     setUsers(merged);
-  }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   async function createMember(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     try {
       const res = await supabase.functions.invoke("create-team-member", {
@@ -80,20 +85,21 @@ export default function Equipe() {
 
   async function saveEdit(e: React.FormEvent) {
     e.preventDefault();
-    if (!editUser) return;
+    if (!editUser || editLoading) return;
+
+    const body: Record<string, string> = { user_id: editUser.id };
+    if (editForm.nome && editForm.nome !== editUser.nome) body.nome = editForm.nome;
+    if (editForm.email && editForm.email !== editUser.email) body.email = editForm.email;
+    if (editForm.password) body.password = editForm.password;
+
+    if (Object.keys(body).length <= 1) {
+      toast.info("Nenhuma alteração detectada.");
+      setEditUser(null);
+      return;
+    }
+
     setEditLoading(true);
     try {
-      const body: Record<string, string> = { user_id: editUser.id };
-      if (editForm.nome && editForm.nome !== editUser.nome) body.nome = editForm.nome;
-      if (editForm.email && editForm.email !== editUser.email) body.email = editForm.email;
-      if (editForm.password) body.password = editForm.password;
-
-      if (Object.keys(body).length <= 1) {
-        toast.info("Nenhuma alteração detectada.");
-        setEditUser(null);
-        return;
-      }
-
       const res = await supabase.functions.invoke("reset-user-password", { body });
       if (res.error) throw new Error(res.error.message);
       const data = res.data as { error?: string } | null;
@@ -109,6 +115,12 @@ export default function Equipe() {
   }
 
   async function changeRole(userId: string, existingRoleId: string | null, newRole: AppRole) {
+    // Impede admin de rebaixar seu próprio perfil (evita perder acesso)
+    if (userId === user?.id && newRole !== "admin") {
+      toast.error("Você não pode rebaixar seu próprio perfil de admin.");
+      load(); // reseta o Select
+      return;
+    }
     if (existingRoleId) {
       const { error } = await supabase.from("user_roles").update({ role: newRole }).eq("id", existingRoleId);
       if (error) { toast.error(translateError(error)); return; }
