@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,18 +33,21 @@ export default function ContasFixas() {
   const [form, setForm] = useState({ descricao: "", valor: "", dia_vencimento: "10", centro_custo_id: "", conta_bancaria_id: "", categoria: "" });
   const [generating, setGenerating] = useState(false);
 
-  useEffect(() => { load(); }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     const [cf, cc, ct] = await Promise.all([
       supabase.from("contas_fixas").select("*, centros_custo(nome), contas_bancarias(nome)").order("descricao"),
       supabase.from("centros_custo").select("*"),
       supabase.from("contas_bancarias").select("*"),
     ]);
+    if (cf.error) { console.error("contas_fixas:", cf.error); toast.error("Falha ao carregar contas fixas"); }
+    if (cc.error) console.error("centros:", cc.error);
+    if (ct.error) console.error("contas:", ct.error);
     setContasFixas(cf.data ?? []);
     setCentros(cc.data ?? []);
     setContas(ct.data ?? []);
-  }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   function openAdd() {
     setForm({ descricao: "", valor: "", dia_vencimento: "10", centro_custo_id: "", conta_bancaria_id: "", categoria: "" });
@@ -66,10 +69,16 @@ export default function ContasFixas() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    const valor = parseFloat(form.valor);
+    const diaVenc = parseInt(form.dia_vencimento);
+    if (!form.descricao.trim()) { toast.error("Informe a descrição."); return; }
+    if (!(valor > 0)) { toast.error("Valor deve ser maior que zero."); return; }
+    if (!(diaVenc >= 1 && diaVenc <= 31)) { toast.error("Dia de vencimento deve estar entre 1 e 31."); return; }
+
     const payload = {
-      descricao: form.descricao,
-      valor: parseFloat(form.valor),
-      dia_vencimento: parseInt(form.dia_vencimento),
+      descricao: form.descricao.trim(),
+      valor,
+      dia_vencimento: diaVenc,
       centro_custo_id: form.centro_custo_id || null,
       conta_bancaria_id: form.conta_bancaria_id || null,
       categoria: form.categoria || null,
@@ -89,53 +98,59 @@ export default function ContasFixas() {
   }
 
   async function toggleAtivo(cf: ContaFixaComRelacoes) {
-    await supabase.from("contas_fixas").update({ ativo: !cf.ativo }).eq("id", cf.id);
+    const { error } = await supabase.from("contas_fixas").update({ ativo: !cf.ativo }).eq("id", cf.id);
+    if (error) { toast.error(translateError(error)); return; }
     load();
   }
 
   async function gerarMensais() {
+    if (generating) return;
     setGenerating(true);
-    const now = new Date();
-    const mesAno = format(now, "yyyy-MM");
-    const ativas = contasFixas.filter(cf => cf.ativo);
+    try {
+      const now = new Date();
+      const mesAno = format(now, "yyyy-MM");
+      const ativas = contasFixas.filter(cf => cf.ativo);
 
-    // Check which already exist this month
-    const { data: existing } = await supabase
-      .from("transacoes")
-      .select("descricao, data_vencimento")
-      .like("data_vencimento", `${mesAno}%`)
-      .eq("categoria", "Conta Fixa");
+      // Check which already exist this month
+      const { data: existing, error: exErr } = await supabase
+        .from("transacoes")
+        .select("descricao, data_vencimento")
+        .like("data_vencimento", `${mesAno}%`)
+        .eq("categoria", "Conta Fixa");
+      if (exErr) { toast.error(translateError(exErr)); return; }
 
-    const existingKeys = new Set((existing ?? []).map(e => `${e.descricao}|${e.data_vencimento}`));
+      const existingKeys = new Set((existing ?? []).map(e => `${e.descricao}|${e.data_vencimento}`));
 
-    const inserts = [];
-    for (const cf of ativas) {
-      const dia = String(cf.dia_vencimento).padStart(2, "0");
-      const vencimento = `${mesAno}-${dia}`;
-      const key = `${cf.descricao}|${vencimento}`;
-      if (existingKeys.has(key)) continue;
+      const inserts = [];
+      for (const cf of ativas) {
+        const dia = String(cf.dia_vencimento).padStart(2, "0");
+        const vencimento = `${mesAno}-${dia}`;
+        const key = `${cf.descricao}|${vencimento}`;
+        if (existingKeys.has(key)) continue;
 
-      inserts.push({
-        descricao: cf.descricao,
-        valor: Number(cf.valor),
-        tipo: "Despesa",
-        status: "Pendente",
-        data_vencimento: vencimento,
-        centro_custo_id: cf.centro_custo_id,
-        conta_bancaria_id: cf.conta_bancaria_id,
-        categoria: "Conta Fixa",
-        user_id: user?.id,
-      });
+        inserts.push({
+          descricao: cf.descricao,
+          valor: Number(cf.valor),
+          tipo: "Despesa",
+          status: "Pendente",
+          data_vencimento: vencimento,
+          centro_custo_id: cf.centro_custo_id,
+          conta_bancaria_id: cf.conta_bancaria_id,
+          categoria: "Conta Fixa",
+          user_id: user?.id,
+        });
+      }
+
+      if (inserts.length === 0) {
+        toast.info("Todas as contas fixas deste mês já foram geradas.");
+      } else {
+        const { error } = await supabase.from("transacoes").insert(inserts);
+        if (error) { toast.error(translateError(error)); return; }
+        toast.success(`${inserts.length} despesa(s) mensal(is) gerada(s) para ${format(now, "MM/yyyy")}!`);
+      }
+    } finally {
+      setGenerating(false);
     }
-
-    if (inserts.length === 0) {
-      toast.info("Todas as contas fixas deste mês já foram geradas.");
-    } else {
-      const { error } = await supabase.from("transacoes").insert(inserts);
-      if (error) { toast.error(translateError(error)); return; }
-      toast.success(`${inserts.length} despesa(s) mensal(is) gerada(s) para ${format(now, "MM/yyyy")}!`);
-    }
-    setGenerating(false);
   }
 
   const formFields = (

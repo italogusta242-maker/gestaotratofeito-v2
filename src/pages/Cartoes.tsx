@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,29 +36,39 @@ export default function Cartoes() {
   const [selectedCartao, setSelectedCartao] = useState<Cartao | null>(null);
   const [parcelas, setParcelas] = useState<Transacao[]>([]);
 
-  useEffect(() => { load(); }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     const [c, cc, v, ct] = await Promise.all([
       supabase.from("cartoes").select("*").order("nome"),
       supabase.from("centros_custo").select("*"),
       supabase.from("veiculos").select("id, placa, marca_modelo").eq("status", "Em Estoque"),
       supabase.from("contas_bancarias").select("*"),
     ]);
+    if (c.error) { console.error("cartoes:", c.error); toast.error("Falha ao carregar cartões"); }
+    if (cc.error) console.error("centros:", cc.error);
+    if (v.error) console.error("veiculos:", v.error);
+    if (ct.error) console.error("contas:", ct.error);
     setCartoes(c.data ?? []);
     setCentros(cc.data ?? []);
     setVeiculos(v.data ?? []);
     setContas(ct.data ?? []);
-  }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   async function addCartao(e: React.FormEvent) {
     e.preventDefault();
+    const diaFech = parseInt(cartaoForm.dia_fechamento);
+    const diaVenc = parseInt(cartaoForm.dia_vencimento);
+    if (!cartaoForm.nome.trim()) { toast.error("Informe o nome do cartão."); return; }
+    if (!(diaFech >= 1 && diaFech <= 31)) { toast.error("Dia de fechamento deve estar entre 1 e 31."); return; }
+    if (!(diaVenc >= 1 && diaVenc <= 31)) { toast.error("Dia de vencimento deve estar entre 1 e 31."); return; }
+
     const { error } = await supabase.from("cartoes").insert({
-      nome: cartaoForm.nome,
+      nome: cartaoForm.nome.trim(),
       bandeira: cartaoForm.bandeira || null,
       limite: parseFloat(cartaoForm.limite) || 0,
-      dia_fechamento: parseInt(cartaoForm.dia_fechamento),
-      dia_vencimento: parseInt(cartaoForm.dia_vencimento),
+      dia_fechamento: diaFech,
+      dia_vencimento: diaVenc,
     });
     if (error) { toast.error(translateError(error)); return; }
     toast.success("Cartão cadastrado!");
@@ -67,18 +77,32 @@ export default function Cartoes() {
     load();
   }
 
+  const loadParcelas = useCallback(async (cartaoId: string) => {
+    const cartao = cartoes.find((c) => c.id === cartaoId);
+    setSelectedCartao(cartao ?? null);
+    const { data, error } = await supabase.from("transacoes").select("*").eq("cartao_id", cartaoId).order("data_vencimento");
+    if (error) { toast.error(translateError(error)); return; }
+    setParcelas(data ?? []);
+  }, [cartoes]);
+
   async function criarParcelas(e: React.FormEvent) {
     e.preventDefault();
     const valorTotal = parseFloat(parcelaForm.valor_total);
     const numParcelas = parseInt(parcelaForm.numero_parcelas);
+    if (!parcelaForm.descricao.trim()) { toast.error("Informe a descrição."); return; }
+    if (!(valorTotal > 0)) { toast.error("Valor total deve ser maior que zero."); return; }
+    if (!(numParcelas >= 1 && numParcelas <= 60)) { toast.error("Número de parcelas deve ser entre 1 e 60."); return; }
+    if (!parcelaForm.data_primeiro_vencimento) { toast.error("Informe a data do primeiro vencimento."); return; }
+
     const valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
     const dataBase = new Date(parcelaForm.data_primeiro_vencimento + "T12:00:00");
+    if (Number.isNaN(dataBase.getTime())) { toast.error("Data inválida."); return; }
 
     const inserts = [];
     for (let i = 0; i < numParcelas; i++) {
       const vencimento = addMonths(dataBase, i);
       inserts.push({
-        descricao: `${parcelaForm.descricao} (${i + 1}/${numParcelas})`,
+        descricao: `${parcelaForm.descricao.trim()} (${i + 1}/${numParcelas})`,
         valor: i === numParcelas - 1 ? Math.round((valorTotal - valorParcela * (numParcelas - 1)) * 100) / 100 : valorParcela,
         tipo: "Despesa",
         status: "Pendente",
@@ -102,15 +126,12 @@ export default function Cartoes() {
     if (selectedCartao?.id === parcelaCartaoId) loadParcelas(parcelaCartaoId);
   }
 
-  async function loadParcelas(cartaoId: string) {
-    const cartao = cartoes.find(c => c.id === cartaoId);
-    setSelectedCartao(cartao);
-    const { data } = await supabase.from("transacoes").select("*").eq("cartao_id", cartaoId).order("data_vencimento");
-    setParcelas(data ?? []);
-  }
-
   async function pagarParcela(id: string) {
-    await supabase.from("transacoes").update({ status: "Pago", data_pagamento: new Date().toISOString().split("T")[0] }).eq("id", id);
+    const { error } = await supabase
+      .from("transacoes")
+      .update({ status: "Pago", data_pagamento: new Date().toISOString().split("T")[0] })
+      .eq("id", id);
+    if (error) { toast.error(translateError(error)); return; }
     toast.success("Parcela paga!");
     if (selectedCartao) loadParcelas(selectedCartao.id);
   }

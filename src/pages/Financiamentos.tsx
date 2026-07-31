@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,34 +39,48 @@ export default function Financiamentos() {
   const [showAntecipar, setShowAntecipar] = useState(false);
   const [qtdAntecipar, setQtdAntecipar] = useState("1");
 
-  useEffect(() => { load(); }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     const [f, cc, v, ct] = await Promise.all([
       supabase.from("financiamentos").select("*, veiculos(placa, marca_modelo), centros_custo(nome), contas_bancarias(nome)").order("created_at", { ascending: false }),
       supabase.from("centros_custo").select("*"),
       supabase.from("veiculos").select("id, placa, marca_modelo"),
       supabase.from("contas_bancarias").select("*"),
     ]);
+    if (f.error) { console.error("financiamentos:", f.error); toast.error("Falha ao carregar financiamentos"); }
+    if (cc.error) console.error("centros:", cc.error);
+    if (v.error) console.error("veiculos:", v.error);
+    if (ct.error) console.error("contas:", ct.error);
     setFinanciamentos(f.data ?? []);
     setCentros(cc.data ?? []);
     setVeiculos(v.data ?? []);
     setContas(ct.data ?? []);
-  }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   async function addFinanciamento(e: React.FormEvent) {
     e.preventDefault();
     const totalParcelas = parseInt(form.total_parcelas);
     const valorParcela = parseFloat(form.valor_parcela);
+    const valorTotal = parseFloat(form.valor_total);
+    const taxaJuros = form.taxa_juros ? parseFloat(form.taxa_juros) : 0;
+
+    if (!form.descricao.trim()) { toast.error("Informe a descrição."); return; }
+    if (!(valorTotal > 0)) { toast.error("Valor total deve ser maior que zero."); return; }
+    if (!(valorParcela > 0)) { toast.error("Valor da parcela deve ser maior que zero."); return; }
+    if (!(totalParcelas >= 1 && totalParcelas <= 120)) { toast.error("Total de parcelas deve estar entre 1 e 120."); return; }
+    if (Number.isNaN(taxaJuros) || taxaJuros < 0) { toast.error("Taxa de juros inválida."); return; }
+    if (!form.data_inicio) { toast.error("Informe a data de início."); return; }
     const dataInicio = new Date(form.data_inicio + "T12:00:00");
+    if (Number.isNaN(dataInicio.getTime())) { toast.error("Data de início inválida."); return; }
 
     // Create financiamento
     const { data: fin, error } = await supabase.from("financiamentos").insert({
-      descricao: form.descricao,
-      valor_total: parseFloat(form.valor_total),
+      descricao: form.descricao.trim(),
+      valor_total: valorTotal,
       valor_parcela: valorParcela,
       total_parcelas: totalParcelas,
-      taxa_juros: parseFloat(form.taxa_juros) || 0,
+      taxa_juros: taxaJuros,
       data_inicio: form.data_inicio,
       veiculo_id: form.veiculo_id || null,
       centro_custo_id: form.centro_custo_id || null,
@@ -79,7 +93,7 @@ export default function Financiamentos() {
     for (let i = 0; i < totalParcelas; i++) {
       const vencimento = addMonths(dataInicio, i);
       inserts.push({
-        descricao: `${form.descricao} (${i + 1}/${totalParcelas})`,
+        descricao: `${form.descricao.trim()} (${i + 1}/${totalParcelas})`,
         valor: valorParcela,
         tipo: "Despesa",
         status: "Pendente",
@@ -94,7 +108,8 @@ export default function Financiamentos() {
         user_id: user?.id,
       });
     }
-    await supabase.from("transacoes").insert(inserts);
+    const { error: insErr } = await supabase.from("transacoes").insert(inserts);
+    if (insErr) { toast.error(translateError(insErr)); return; }
     toast.success(`Financiamento criado com ${totalParcelas} parcelas!`);
     setShowAdd(false);
     setForm({ descricao: "", valor_total: "", valor_parcela: "", total_parcelas: "", taxa_juros: "", data_inicio: "", veiculo_id: "", centro_custo_id: "", conta_bancaria_id: "" });
@@ -103,30 +118,37 @@ export default function Financiamentos() {
 
   async function selectFin(fin: FinanciamentoComRelacoes) {
     setSelected(fin);
-    const { data } = await supabase.from("transacoes").select("*").eq("financiamento_id", fin.id).order("data_vencimento");
+    const { data, error } = await supabase.from("transacoes").select("*").eq("financiamento_id", fin.id).order("data_vencimento");
+    if (error) { toast.error(translateError(error)); return; }
     setParcelas(data ?? []);
   }
 
   async function pagarParcela(id: string) {
-    await supabase.from("transacoes").update({ status: "Pago", data_pagamento: new Date().toISOString().split("T")[0] }).eq("id", id);
+    const { error } = await supabase.from("transacoes").update({ status: "Pago", data_pagamento: new Date().toISOString().split("T")[0] }).eq("id", id);
+    if (error) { toast.error(translateError(error)); return; }
     toast.success("Parcela paga!");
     if (selected) selectFin(selected);
   }
 
   async function anteciparParcelas() {
     const pendentes = parcelas.filter(p => p.status === "Pendente").sort((a, b) => a.parcela_atual - b.parcela_atual);
-    const qtd = Math.min(parseInt(qtdAntecipar), pendentes.length);
+    const qtdInput = parseInt(qtdAntecipar);
+    if (!(qtdInput >= 1)) { toast.error("Quantidade deve ser pelo menos 1."); return; }
+    if (pendentes.length === 0) { toast.error("Não há parcelas pendentes."); return; }
+    const qtd = Math.min(qtdInput, pendentes.length);
     const ids = pendentes.slice(0, qtd).map(p => p.id);
     const hoje = new Date().toISOString().split("T")[0];
 
     for (const id of ids) {
-      await supabase.from("transacoes").update({ status: "Pago", data_pagamento: hoje }).eq("id", id);
+      const { error } = await supabase.from("transacoes").update({ status: "Pago", data_pagamento: hoje }).eq("id", id);
+      if (error) { toast.error(translateError(error)); return; }
     }
 
     // Check if all paid → mark as Quitado
     const totalPagas = parcelas.filter(p => p.status === "Pago").length + qtd;
-    if (totalPagas >= (selected?.total_parcelas ?? 0)) {
-      await supabase.from("financiamentos").update({ status: "Quitado" }).eq("id", selected.id);
+    if (selected && totalPagas >= (selected.total_parcelas ?? 0)) {
+      const { error } = await supabase.from("financiamentos").update({ status: "Quitado" }).eq("id", selected.id);
+      if (error) { toast.error(translateError(error)); return; }
     }
 
     toast.success(`${qtd} parcela(s) antecipada(s)!`);
