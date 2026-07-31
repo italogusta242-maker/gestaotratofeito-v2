@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { translateError } from "@/lib/supabase-errors";
+import { validateDespesa } from "@/lib/despesa-validation";
 import type { Veiculo, ContaBancaria } from "@/lib/db-types";
 
 interface Props { veiculo: Veiculo; onClose: () => void; }
@@ -32,8 +33,16 @@ export default function DespesaDialog({ veiculo, onClose }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (loading) return;
-    const valorNum = parseFloat(form.valor);
-    if (!(valorNum > 0)) { toast.error("Informe um valor maior que zero"); return; }
+    const validation = validateDespesa({
+      descricao: form.descricao,
+      valor: form.valor,
+      data_ocorrencia: form.data_ocorrencia,
+    });
+    if (!validation.ok) {
+      toast.error(validation.error!);
+      return;
+    }
+    const valorNum = validation.valorNum!;
     setLoading(true);
     const descricaoFinal = form.peca_servico
       ? `${form.descricao} - ${form.peca_servico}`
