@@ -14,20 +14,27 @@ import { toast } from "sonner";
 import { Plus, Landmark } from "lucide-react";
 import { addMonths, format } from "date-fns";
 import { formatBRL } from "@/lib/format";
+import type { Financiamento, CentroCusto, Veiculo, ContaBancaria, Transacao } from "@/lib/db-types";
+
+type FinanciamentoComRelacoes = Financiamento & {
+  veiculos: { placa: string; marca_modelo: string } | null;
+  centros_custo: { nome: string } | null;
+  contas_bancarias: { nome: string } | null;
+};
 
 export default function Financiamentos() {
   const { user, role } = useAuth();
   const isAdmin = role === "admin";
-  const [financiamentos, setFinanciamentos] = useState<any[]>([]);
+  const [financiamentos, setFinanciamentos] = useState<FinanciamentoComRelacoes[]>([]);
   const [showAdd, setShowAdd] = useState(false);
-  const [centros, setCentros] = useState<any[]>([]);
-  const [veiculos, setVeiculos] = useState<any[]>([]);
-  const [contas, setContas] = useState<any[]>([]);
+  const [centros, setCentros] = useState<CentroCusto[]>([]);
+  const [veiculos, setVeiculos] = useState<Pick<Veiculo, "id" | "placa" | "marca_modelo">[]>([]);
+  const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [form, setForm] = useState({ descricao: "", valor_total: "", valor_parcela: "", total_parcelas: "", taxa_juros: "", data_inicio: "", veiculo_id: "", centro_custo_id: "", conta_bancaria_id: "" });
 
   // Detail view
-  const [selected, setSelected] = useState<any | null>(null);
-  const [parcelas, setParcelas] = useState<any[]>([]);
+  const [selected, setSelected] = useState<FinanciamentoComRelacoes | null>(null);
+  const [parcelas, setParcelas] = useState<Transacao[]>([]);
   const [showAntecipar, setShowAntecipar] = useState(false);
   const [qtdAntecipar, setQtdAntecipar] = useState("1");
 

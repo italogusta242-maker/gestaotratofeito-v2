@@ -10,15 +10,16 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import type { Cliente } from "@/lib/db-types";
 
 export default function Clientes() {
   const { role } = useAuth();
   const canWrite = role === "admin" || role === "auxiliar_operacional";
-  const [clientes, setClientes] = useState<any[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
-  const [editing, setEditing] = useState<any | null>(null);
-  const [deleting, setDeleting] = useState<any | null>(null);
+  const [editing, setEditing] = useState<Cliente | null>(null);
+  const [deleting, setDeleting] = useState<Cliente | null>(null);
   const [form, setForm] = useState({ nome: "", cpf_cnpj: "", email: "", telefone: "", endereco: "", rg: "", estado_civil: "", nacionalidade: "", data_nascimento: "" });
 
   useEffect(() => { load(); }, []);

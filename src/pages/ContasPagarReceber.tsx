@@ -12,17 +12,24 @@ import { format, isToday, isBefore, startOfDay, differenceInDays, parseISO } fro
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import GenericReceipt from "@/components/GenericReceipt";
 import { formatBRL } from "@/lib/format";
+import type { Transacao, ContaBancaria, CentroCusto } from "@/lib/db-types";
+
+type TransacaoComRelacoes = Transacao & {
+  centros_custo: { nome: string } | null;
+  contas_bancarias: { nome: string } | null;
+  veiculos: { placa: string; marca_modelo: string; ano: number | null; cor: string | null } | null;
+};
 
 export default function ContasPagarReceber() {
-  const [transacoes, setTransacoes] = useState<any[]>([]);
-  const [contas, setContas] = useState<any[]>([]);
-  const [centros, setCentros] = useState<any[]>([]);
+  const [transacoes, setTransacoes] = useState<TransacaoComRelacoes[]>([]);
+  const [contas, setContas] = useState<ContaBancaria[]>([]);
+  const [centros, setCentros] = useState<CentroCusto[]>([]);
   const [filterConta, setFilterConta] = useState("all");
   const [filterCentro, setFilterCentro] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [tab, setTab] = useState("pendentes");
   const [innerTab, setInnerTab] = useState("pagar");
-  const [receiptTx, setReceiptTx] = useState<any | null>(null);
+  const [receiptTx, setReceiptTx] = useState<TransacaoComRelacoes | null>(null);
 
   useEffect(() => { load(); }, []);
 

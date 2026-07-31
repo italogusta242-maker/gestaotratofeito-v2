@@ -14,25 +14,26 @@ import { toast } from "sonner";
 import { Plus, CreditCard } from "lucide-react";
 import { addMonths, format } from "date-fns";
 import { formatBRL } from "@/lib/format";
+import type { Cartao, CentroCusto, Veiculo, ContaBancaria, Transacao } from "@/lib/db-types";
 
 export default function Cartoes() {
   const { user, role } = useAuth();
   const isAdmin = role === "admin";
-  const [cartoes, setCartoes] = useState<any[]>([]);
+  const [cartoes, setCartoes] = useState<Cartao[]>([]);
   const [showAddCartao, setShowAddCartao] = useState(false);
   const [cartaoForm, setCartaoForm] = useState({ nome: "", bandeira: "", limite: "", dia_fechamento: "1", dia_vencimento: "10" });
 
   // Parcela form
   const [showParcela, setShowParcela] = useState(false);
   const [parcelaCartaoId, setParcelaCartaoId] = useState("");
-  const [centros, setCentros] = useState<any[]>([]);
-  const [veiculos, setVeiculos] = useState<any[]>([]);
-  const [contas, setContas] = useState<any[]>([]);
+  const [centros, setCentros] = useState<CentroCusto[]>([]);
+  const [veiculos, setVeiculos] = useState<Pick<Veiculo, "id" | "placa" | "marca_modelo">[]>([]);
+  const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [parcelaForm, setParcelaForm] = useState({ descricao: "", valor_total: "", numero_parcelas: "", data_primeiro_vencimento: "", centro_custo_id: "", veiculo_id: "", conta_bancaria_id: "" });
 
   // Transactions per card
-  const [selectedCartao, setSelectedCartao] = useState<any | null>(null);
-  const [parcelas, setParcelas] = useState<any[]>([]);
+  const [selectedCartao, setSelectedCartao] = useState<Cartao | null>(null);
+  const [parcelas, setParcelas] = useState<Transacao[]>([]);
 
   useEffect(() => { load(); }, []);
 

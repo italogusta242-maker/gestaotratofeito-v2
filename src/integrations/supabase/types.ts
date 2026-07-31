@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
@@ -255,57 +255,6 @@ export type Database = {
           },
         ]
       }
-      ia_cache_respostas: {
-        Row: {
-          created_at: string
-          id: string
-          query_usuario: string
-          resposta_ia: string
-          tipo_intencao: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          query_usuario: string
-          resposta_ia: string
-          tipo_intencao?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          query_usuario?: string
-          resposta_ia?: string
-          tipo_intencao?: string | null
-        }
-        Relationships: []
-      }
-      logs_ia_suporte: {
-        Row: {
-          data_criacao: string
-          id: string
-          mensagem_usuario: string
-          resposta_ia: string
-          status_dev: string
-          tipo: string
-        }
-        Insert: {
-          data_criacao?: string
-          id?: string
-          mensagem_usuario: string
-          resposta_ia: string
-          status_dev?: string
-          tipo?: string
-        }
-        Update: {
-          data_criacao?: string
-          id?: string
-          mensagem_usuario?: string
-          resposta_ia?: string
-          status_dev?: string
-          tipo?: string
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           created_at: string
@@ -369,7 +318,9 @@ export type Database = {
           data_pagamento: string | null
           data_vencimento: string
           descricao: string
+          favorecido_pagador: string | null
           financiamento_id: string | null
+          forma_pagamento: string | null
           id: string
           parcela_atual: number | null
           status: string
@@ -388,7 +339,9 @@ export type Database = {
           data_pagamento?: string | null
           data_vencimento?: string
           descricao: string
+          favorecido_pagador?: string | null
           financiamento_id?: string | null
+          forma_pagamento?: string | null
           id?: string
           parcela_atual?: number | null
           status?: string
@@ -407,7 +360,9 @@ export type Database = {
           data_pagamento?: string | null
           data_vencimento?: string
           descricao?: string
+          favorecido_pagador?: string | null
           financiamento_id?: string | null
+          forma_pagamento?: string | null
           id?: string
           parcela_atual?: number | null
           status?: string

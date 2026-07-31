@@ -17,6 +17,7 @@ import DespesaDialog from "@/components/DespesaDialog";
 import VendaDialog from "@/components/VendaDialog";
 import ClienteSelector from "@/components/ClienteSelector";
 import { formatBRL } from "@/lib/format";
+import type { VeiculoComCentro, Cliente, Transacao, CentroCusto } from "@/lib/db-types";
 
 const statusOptions = ["Em Estoque", "Preparação", "Na Oficina", "No Despachante", "No Pátio", "Consignado", "Vendido"];
 
@@ -37,11 +38,11 @@ export default function VeiculoDetalhe() {
   const canWrite = role === "admin" || role === "auxiliar_operacional";
   const isEmissao = role === "auxiliar_emissao";
 
-  const [veiculo, setVeiculo] = useState<any>(null);
-  const [clienteCompra, setClienteCompra] = useState<any>(null);
-  const [clienteVenda, setClienteVenda] = useState<any>(null);
-  const [transacoes, setTransacoes] = useState<any[]>([]);
-  const [centros, setCentros] = useState<any[]>([]);
+  const [veiculo, setVeiculo] = useState<VeiculoComCentro | null>(null);
+  const [clienteCompra, setClienteCompra] = useState<Cliente | null>(null);
+  const [clienteVenda, setClienteVenda] = useState<Cliente | null>(null);
+  const [transacoes, setTransacoes] = useState<Transacao[]>([]);
+  const [centros, setCentros] = useState<CentroCusto[]>([]);
   const [docs, setDocs] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [showDespesa, setShowDespesa] = useState(false);

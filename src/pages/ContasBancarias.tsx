@@ -11,16 +11,17 @@ import { toast } from "sonner";
 import { Plus, Building2, ArrowRightLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { formatBRL } from "@/lib/format";
+import type { ContaBancaria, Transacao } from "@/lib/db-types";
 
 export default function ContasBancarias() {
-  const [contas, setContas] = useState<any[]>([]);
+  const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [showTrans, setShowTrans] = useState(false);
   const [form, setForm] = useState({ nome: "", tipo: "Corrente", saldo_inicial: "" });
   const [transForm, setTransForm] = useState({ origemId: "", destinoId: "", valor: "", data: new Date().toISOString().split("T")[0], descricao: "Transferência" });
-  const [selectedConta, setSelectedConta] = useState<any | null>(null);
-  const [txs, setTxs] = useState<any[]>([]);
-  const [allTxs, setAllTxs] = useState<any[]>([]);
+  const [selectedConta, setSelectedConta] = useState<ContaBancaria | null>(null);
+  const [txs, setTxs] = useState<Transacao[]>([]);
+  const [allTxs, setAllTxs] = useState<Pick<Transacao, "valor" | "tipo" | "conta_bancaria_id">[]>([]);
   const { user } = useAuth();
 
   useEffect(() => { load(); }, []);

@@ -14,15 +14,21 @@ import { toast } from "sonner";
 import { Plus, CalendarClock, RefreshCw, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { formatBRL } from "@/lib/format";
+import type { ContaFixa, CentroCusto, ContaBancaria } from "@/lib/db-types";
+
+type ContaFixaComRelacoes = ContaFixa & {
+  centros_custo: { nome: string } | null;
+  contas_bancarias: { nome: string } | null;
+};
 
 export default function ContasFixas() {
   const { user, role } = useAuth();
   const isAdmin = role === "admin";
-  const [contasFixas, setContasFixas] = useState<any[]>([]);
-  const [centros, setCentros] = useState<any[]>([]);
-  const [contas, setContas] = useState<any[]>([]);
+  const [contasFixas, setContasFixas] = useState<ContaFixaComRelacoes[]>([]);
+  const [centros, setCentros] = useState<CentroCusto[]>([]);
+  const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [showAdd, setShowAdd] = useState(false);
-  const [editing, setEditing] = useState<any | null>(null);
+  const [editing, setEditing] = useState<ContaFixaComRelacoes | null>(null);
   const [form, setForm] = useState({ descricao: "", valor: "", dia_vencimento: "10", centro_custo_id: "", conta_bancaria_id: "", categoria: "" });
   const [generating, setGenerating] = useState(false);
 

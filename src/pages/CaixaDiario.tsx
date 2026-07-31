@@ -12,13 +12,19 @@ import { toast } from "sonner";
 import { Plus, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft } from "lucide-react";
 import { format } from "date-fns";
 import { formatBRL } from "@/lib/format";
+import type { Transacao, ContaBancaria, CentroCusto, Veiculo } from "@/lib/db-types";
+
+type TransacaoComRelacoes = Transacao & {
+  centros_custo: { nome: string } | null;
+  contas_bancarias: { nome: string } | null;
+};
 
 export default function CaixaDiario() {
   const { user, role } = useAuth();
-  const [transacoes, setTransacoes] = useState<any[]>([]);
-  const [contas, setContas] = useState<any[]>([]);
-  const [centros, setCentros] = useState<any[]>([]);
-  const [veiculos, setVeiculos] = useState<any[]>([]);
+  const [transacoes, setTransacoes] = useState<TransacaoComRelacoes[]>([]);
+  const [contas, setContas] = useState<ContaBancaria[]>([]);
+  const [centros, setCentros] = useState<CentroCusto[]>([]);
+  const [veiculos, setVeiculos] = useState<Pick<Veiculo, "id" | "placa" | "marca_modelo">[]>([]);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [periodo, setPeriodo] = useState<"Dia" | "Mês">("Dia");
   const [showForm, setShowForm] = useState(false);

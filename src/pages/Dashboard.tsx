@@ -12,6 +12,9 @@ import ExportBackup from "@/components/ExportBackup";
 import { format, startOfMonth, endOfMonth, subWeeks, startOfWeek, endOfWeek, isAfter, isBefore, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatBRL } from "@/lib/format";
+import type { Transacao, VeiculoComCentro, ContaFixa } from "@/lib/db-types";
+
+type ContaFixaComCentro = ContaFixa & { centros_custo: { nome: string } | null };
 
 // Centros são resolvidos por nome no runtime (evita hardcode de UUIDs)
 const CENTRO_NOMES = {
@@ -24,9 +27,9 @@ type TabKey = "tudo" | "escritorio" | "trato" | "casa";
 
 export default function Dashboard() {
   const { role } = useAuth();
-  const [transacoes, setTransacoes] = useState<any[]>([]);
-  const [veiculos, setVeiculos] = useState<any[]>([]);
-  const [contasFixas, setContasFixas] = useState<any[]>([]);
+  const [transacoes, setTransacoes] = useState<Transacao[]>([]);
+  const [veiculos, setVeiculos] = useState<VeiculoComCentro[]>([]);
+  const [contasFixas, setContasFixas] = useState<ContaFixaComCentro[]>([]);
   const [saldosBancarios, setSaldosBancarios] = useState<{ nome: string; saldo: number }[]>([]);
   const [centros, setCentros] = useState<{ id: string; nome: string }[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>("tudo");

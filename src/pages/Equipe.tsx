@@ -13,8 +13,11 @@ import { toast } from "sonner";
 import { UserPlus, Trash2, Pencil } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import type { Database } from "@/integrations/supabase/types";
+import type { Profile } from "@/lib/db-types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
+
+type EquipeUser = Profile & { role: AppRole | null; role_id: string | null };
 
 const roleLabels: Record<string, string> = {
   admin: "Admin",
@@ -24,14 +27,14 @@ const roleLabels: Record<string, string> = {
 
 export default function Equipe() {
   const { session, user } = useAuth();
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<EquipeUser[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", email: "", password: "", role: "auxiliar_operacional" as AppRole });
   const [loading, setLoading] = useState(false);
 
   // Edit state
-  const [editUser, setEditUser] = useState<any | null>(null);
+  const [editUser, setEditUser] = useState<EquipeUser | null>(null);
   const [editForm, setEditForm] = useState({ nome: "", email: "", password: "" });
   const [editLoading, setEditLoading] = useState(false);
 

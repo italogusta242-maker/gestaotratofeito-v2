@@ -19,6 +19,7 @@ import { differenceInDays } from "date-fns";
 import { formatPlaca, cleanPlaca } from "@/lib/format-placa";
 import { formatBRL, upperCase } from "@/lib/format";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { VeiculoComCentro, CentroCusto } from "@/lib/db-types";
 
 const STATUSES = ["Em Estoque", "Preparação", "Na Oficina", "No Despachante", "No Pátio", "Consignado", "Vendido"];
 
@@ -35,15 +36,15 @@ const statusStyle: Record<string, { bg: string; border: string; text: string; do
 export default function Veiculos() {
   const navigate = useNavigate();
   const { role } = useAuth();
-  const [veiculos, setVeiculos] = useState<any[]>([]);
-  const [centros, setCentros] = useState<any[]>([]);
+  const [veiculos, setVeiculos] = useState<VeiculoComCentro[]>([]);
+  const [centros, setCentros] = useState<CentroCusto[]>([]);
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
-  const [despesaVeiculo, setDespesaVeiculo] = useState<any | null>(null);
-  const [vendaVeiculo, setVendaVeiculo] = useState<any | null>(null);
+  const [despesaVeiculo, setDespesaVeiculo] = useState<VeiculoComCentro | null>(null);
+  const [vendaVeiculo, setVendaVeiculo] = useState<VeiculoComCentro | null>(null);
   const [form, setForm] = useState({ placa: "", marca_modelo: "", ano: "", ano_modelo: "", cor: "", renavam: "", chassi: "", combustivel: "", valor_aquisicao: "", centro_custo_id: "", status: "Em Estoque", data_entrada_patio: new Date().toISOString().split("T")[0] });
-  const [editingVeiculo, setEditingVeiculo] = useState<any | null>(null);
-  const [deleteVeiculo, setDeleteVeiculo] = useState<any | null>(null);
+  const [editingVeiculo, setEditingVeiculo] = useState<VeiculoComCentro | null>(null);
+  const [deleteVeiculo, setDeleteVeiculo] = useState<VeiculoComCentro | null>(null);
   const [clienteCompraId, setClienteCompraId] = useState<string | null>(null);
   const [isConsignment, setIsConsignment] = useState(false);
   const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
