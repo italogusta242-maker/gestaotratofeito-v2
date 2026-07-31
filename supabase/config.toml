@@ -1,0 +1,10 @@
+project_id = "rfgvxhqngcnncezpgtyr"
+
+[functions.create-team-member]
+verify_jwt = false
+
+[functions.consultar-placa]
+verify_jwt = false
+
+[functions.delete-team-member]
+verify_jwt = false
