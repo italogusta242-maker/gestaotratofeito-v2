@@ -31,6 +31,9 @@ export default function DespesaDialog({ veiculo, onClose }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
+    const valorNum = parseFloat(form.valor);
+    if (!(valorNum > 0)) { toast.error("Informe um valor maior que zero"); return; }
     setLoading(true);
     const descricaoFinal = form.peca_servico
       ? `${form.descricao} - ${form.peca_servico}`
@@ -38,7 +41,7 @@ export default function DespesaDialog({ veiculo, onClose }: Props) {
 
     const { error } = await supabase.from("transacoes").insert({
       descricao: descricaoFinal,
-      valor: parseFloat(form.valor),
+      valor: valorNum,
       tipo: "Despesa",
       status: "Pago",
       data_vencimento: form.data_ocorrencia,

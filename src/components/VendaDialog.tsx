@@ -11,6 +11,7 @@ import ClienteSelector from "@/components/ClienteSelector";
 import NovoVeiculoDialog from "@/components/NovoVeiculoDialog";
 import { Plus, Trash2 } from "lucide-react";
 import { translateError } from "@/lib/supabase-errors";
+import { validateVenda } from "@/lib/venda-validation";
 import type { Veiculo, ContaBancaria } from "@/lib/db-types";
 
 interface Props { veiculo: Veiculo; onClose: () => void; }
@@ -63,69 +64,82 @@ export default function VendaDialog({ veiculo, onClose }: Props) {
 
   async function handleVenda(e: React.FormEvent) {
     e.preventDefault();
-    if (restante < -0.01) {
-      toast.error(`A soma dos pagamentos (${totalPagamentos.toFixed(2)}) é maior que o valor de venda (${vendaNum.toFixed(2)}).`);
+    if (loading) return; // proteção extra contra double-submit
+    const validation = validateVenda(valorVenda, pagamentos);
+    if (!validation.ok) {
+      toast.error(validation.error!);
       return;
     }
     setLoading(true);
-    try {
-      // 1. Mark car as sold
-      await supabase.from("veiculos").update({ status: "Vendido", cliente_venda_id: clienteVendaId }).eq("id", veiculo.id);
 
-      // 2. Create transactions for each payment line
-      const transacoes = pagamentos.map((p, i) => ({
-        descricao: pagamentos.length === 1
-          ? `Venda ${veiculo.placa}${p.forma === "Veículo na Troca" ? " (troca)" : ""}`
-          : `Venda ${veiculo.placa} — ${p.forma} (${i + 1}/${pagamentos.length})`,
-        valor: parseFloat(p.valor) || 0,
+    // 1. Cria transações primeiro (se falhar, veículo continua disponível)
+    const transacoes = pagamentos.map((p, i) => ({
+      descricao: pagamentos.length === 1
+        ? `Venda ${veiculo.placa}${p.forma === "Veículo na Troca" ? " (troca)" : ""}`
+        : `Venda ${veiculo.placa} — ${p.forma} (${i + 1}/${pagamentos.length})`,
+      valor: parseFloat(p.valor) || 0,
+      tipo: "Receita" as const,
+      status: p.forma === "Financiamento Banco" ? "Pendente" : "Pago",
+      data_vencimento: p.dataRecebimento,
+      data_pagamento: p.forma === "Financiamento Banco" ? null : p.dataRecebimento,
+      conta_bancaria_id: p.forma === "Veículo na Troca" ? null : (p.contaId || null),
+      centro_custo_id: veiculo.centro_custo_id,
+      veiculo_id: veiculo.id,
+      categoria: p.forma === "Veículo na Troca" ? "Troca de Veículo" : "Venda de Veículo",
+      user_id: user?.id,
+    }));
+
+    if (restante > 0.01) {
+      transacoes.push({
+        descricao: `Saldo Restante Venda - ${veiculo.placa}`,
+        valor: restante,
         tipo: "Receita" as const,
-        status: p.forma === "Financiamento Banco" ? "Pendente" : p.forma === "Veículo na Troca" ? "Pago" : "Pago",
-        data_vencimento: p.dataRecebimento,
-        data_pagamento: p.forma === "Financiamento Banco" ? null : p.dataRecebimento,
-        conta_bancaria_id: p.forma === "Veículo na Troca" ? null : (p.contaId || null),
+        status: "Pendente",
+        data_vencimento: new Date().toISOString().split("T")[0],
+        data_pagamento: null,
+        conta_bancaria_id: null,
         centro_custo_id: veiculo.centro_custo_id,
         veiculo_id: veiculo.id,
-        categoria: p.forma === "Veículo na Troca" ? "Troca de Veículo" : "Venda de Veículo",
+        categoria: "Venda de Veículo (Saldo)",
         user_id: user?.id,
-      }));
-
-      // 2.5 Add pending transaction for the remaining balance if partial payment
-      if (restante > 0.01) {
-        transacoes.push({
-          descricao: `Saldo Restante Venda - ${veiculo.placa}`,
-          valor: restante,
-          tipo: "Receita" as const,
-          status: "Pendente",
-          data_vencimento: new Date().toISOString().split("T")[0],
-          data_pagamento: null,
-          conta_bancaria_id: null,
-          centro_custo_id: veiculo.centro_custo_id,
-          veiculo_id: veiculo.id,
-          categoria: "Venda de Veículo (Saldo)",
-          user_id: user?.id,
-        });
-      }
-
-      const { data: insertedTx, error } = await supabase.from("transacoes").insert(transacoes).select("id");
-      if (error) throw error;
-
-      // 3. If there are trade-in payments, open vehicle registration modals
-      if (hasTradeIn) {
-        setTransacoesCriadas(insertedTx?.map(t => t.id) ?? []);
-        setTradeInPagamentos(tradeInLinhas);
-        setCurrentTradeInIdx(0);
-        setVendaConfirmada(true);
-        setShowNovoVeiculo(true);
-        toast.success("Venda registrada! Agora cadastre o(s) veículo(s) recebido(s) na troca.");
-      } else {
-        toast.success("Venda registrada com sucesso!");
-        onClose();
-      }
-    } catch (err) {
-      toast.error(translateError(err as { message?: string }));
-    } finally {
-      setLoading(false);
+      });
     }
+
+    const { data: insertedTx, error: txError } = await supabase.from("transacoes").insert(transacoes).select("id");
+    if (txError) {
+      toast.error(translateError(txError));
+      setLoading(false);
+      return;
+    }
+
+    // 2. Marca veículo como Vendido. Se falhar, faz rollback das transações.
+    const { error: veicError } = await supabase
+      .from("veiculos")
+      .update({ status: "Vendido", cliente_venda_id: clienteVendaId })
+      .eq("id", veiculo.id);
+
+    if (veicError) {
+      // rollback transações criadas
+      const ids = insertedTx?.map((t) => t.id) ?? [];
+      if (ids.length > 0) await supabase.from("transacoes").delete().in("id", ids);
+      toast.error("Não foi possível marcar o veículo como vendido: " + translateError(veicError));
+      setLoading(false);
+      return;
+    }
+
+    // 3. Trade-in flow
+    if (hasTradeIn) {
+      setTransacoesCriadas(insertedTx?.map((t) => t.id) ?? []);
+      setTradeInPagamentos(tradeInLinhas);
+      setCurrentTradeInIdx(0);
+      setVendaConfirmada(true);
+      setShowNovoVeiculo(true);
+      toast.success("Venda registrada! Agora cadastre o(s) veículo(s) recebido(s) na troca.");
+    } else {
+      toast.success("Venda registrada com sucesso!");
+      onClose();
+    }
+    setLoading(false);
   }
 
   function handleVeiculoCadastrado(veiculoId?: string) {

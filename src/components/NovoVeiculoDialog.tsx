@@ -54,6 +54,13 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
+    const valorNum = parseFloat(form.valor_aquisicao) || 0;
+    if (valorNum < 0) { toast.error("Valor de aquisição inválido"); return; }
+    if (isConsignment && !clienteCompraId) {
+      toast.error("Selecione o dono do veículo consignado");
+      return;
+    }
     setLoading(true);
     const { data, error } = await supabase.from("veiculos").insert({
       placa: form.placa.toUpperCase(),
@@ -73,7 +80,6 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
     
     if (error) { toast.error(translateError(error)); setLoading(false); return; }
 
-    const valorNum = parseFloat(form.valor_aquisicao) || 0;
     const debitosNum = parseFloat(form.debitos_veiculo) || 0;
     const txsToInsert = [];
 
