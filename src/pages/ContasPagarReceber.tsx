@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { translateError } from "@/lib/supabase-errors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,27 +32,38 @@ export default function ContasPagarReceber() {
   const [innerTab, setInnerTab] = useState("pagar");
   const [receiptTx, setReceiptTx] = useState<TransacaoComRelacoes | null>(null);
 
-  useEffect(() => { load(); }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     const [tx, c, cc] = await Promise.all([
       supabase.from("transacoes").select("*, centros_custo(nome), contas_bancarias(nome), veiculos(placa, marca_modelo, ano, cor)").order("data_vencimento"),
       supabase.from("contas_bancarias").select("*"),
       supabase.from("centros_custo").select("*"),
     ]);
+    if (tx.error) { console.error("load tx failed:", tx.error); toast.error("Falha ao carregar transações"); }
+    if (c.error) console.error("load contas failed:", c.error);
+    if (cc.error) console.error("load centros failed:", cc.error);
     setTransacoes(tx.data ?? []);
     setContas(c.data ?? []);
     setCentros(cc.data ?? []);
-  }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   async function marcarPago(id: string) {
-    await supabase.from("transacoes").update({ status: "Pago", data_pagamento: new Date().toISOString().split("T")[0] }).eq("id", id);
+    const { error } = await supabase
+      .from("transacoes")
+      .update({ status: "Pago", data_pagamento: new Date().toISOString().split("T")[0] })
+      .eq("id", id);
+    if (error) { toast.error(translateError(error)); return; }
     toast.success("Marcado como pago!");
     load();
   }
 
   async function estornar(id: string) {
-    await supabase.from("transacoes").update({ status: "Pendente", data_pagamento: null }).eq("id", id);
+    const { error } = await supabase
+      .from("transacoes")
+      .update({ status: "Pendente", data_pagamento: null })
+      .eq("id", id);
+    if (error) { toast.error(translateError(error)); return; }
     toast.success("Pagamento estornado!");
     load();
   }
