@@ -103,7 +103,12 @@ export default function Recibo() {
         </div>
 
         <p className="text-xs text-center text-gray-400 mt-6">
-          Data de emissão: {new Date().toLocaleDateString("pt-BR")}
+          Data de emissão: {(() => {
+            const dateStr = vendaTx?.data_pagamento ?? vendaTx?.data_vencimento;
+            if (!dateStr) return new Date().toLocaleDateString("pt-BR");
+            const [y, m, d] = dateStr.split("-");
+            return `${d}/${m}/${y}`;
+          })()}
         </p>
       </div>
     </div>

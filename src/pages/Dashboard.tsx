@@ -11,11 +11,11 @@ import ExportBackup from "@/components/ExportBackup";
 import { format, startOfMonth, endOfMonth, subWeeks, startOfWeek, endOfWeek, isAfter, isBefore, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-// Hardcoded centro de custo IDs from database
-const CENTROS = {
-  escritorio: "31dd7998-cf65-4fd6-908d-b5246829f267",
-  tratoFeito: "46fb1197-d27d-4b16-b67f-23cd1ef7db11",
-  casa: "ac28324c-9a1f-4670-b579-31299d2664f4",
+// Centros são resolvidos por nome no runtime (evita hardcode de UUIDs)
+const CENTRO_NOMES = {
+  escritorio: "Escritório",
+  trato: "Trato Feito",
+  casa: "Casa/Sócios",
 } as const;
 
 type TabKey = "tudo" | "escritorio" | "trato" | "casa";
@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [veiculos, setVeiculos] = useState<any[]>([]);
   const [contasFixas, setContasFixas] = useState<any[]>([]);
   const [saldosBancarios, setSaldosBancarios] = useState<{ nome: string; saldo: number }[]>([]);
+  const [centros, setCentros] = useState<{ id: string; nome: string }[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>("tudo");
   const [loading, setLoading] = useState(true);
 
@@ -41,18 +42,20 @@ export default function Dashboard() {
 
   async function loadAll() {
     setLoading(true);
-    const [txRes, veicRes, fixasRes, contasRes, txAllRes] = await Promise.all([
+    const [txRes, veicRes, fixasRes, contasRes, txAllRes, centrosRes] = await Promise.all([
       supabase.from("transacoes").select("*").order("data_vencimento", { ascending: true }),
       supabase.from("veiculos").select("*, centros_custo(nome)").eq("status", "Em Estoque"),
       supabase.from("contas_fixas").select("*, centros_custo(nome)").eq("ativo", true),
       supabase.from("contas_bancarias").select("*"),
       // Get paid transactions for bank balance calculation
       supabase.from("transacoes").select("valor, tipo, conta_bancaria_id").eq("status", "Pago").not("conta_bancaria_id", "is", null),
+      supabase.from("centros_custo").select("id, nome"),
     ]);
 
     setTransacoes(txRes.data ?? []);
     setVeiculos(veicRes.data ?? []);
     setContasFixas(fixasRes.data ?? []);
+    setCentros(centrosRes.data ?? []);
 
     // Calculate real bank balances
     const contas = contasRes.data ?? [];
@@ -70,7 +73,9 @@ export default function Dashboard() {
   // Filter helpers
   function filterByCentro(items: any[], tab: TabKey, field = "centro_custo_id") {
     if (tab === "tudo") return items;
-    const centroId = tab === "escritorio" ? CENTROS.escritorio : tab === "trato" ? CENTROS.tratoFeito : CENTROS.casa;
+    const nome = CENTRO_NOMES[tab];
+    const centroId = centros.find(c => c.nome === nome)?.id;
+    if (!centroId) return [];
     return items.filter(i => i[field] === centroId);
   }
 

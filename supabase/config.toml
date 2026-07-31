@@ -1,9 +1,6 @@
-project_id = "rfgvxhqngcnncezpgtyr"
+project_id = "urewgsecijdzjbfxlyqu"
 
 [functions.create-team-member]
-verify_jwt = false
-
-[functions.consultar-placa]
 verify_jwt = false
 
 [functions.delete-team-member]
