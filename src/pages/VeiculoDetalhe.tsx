@@ -130,6 +130,7 @@ export default function VeiculoDetalhe() {
   }
 
   async function handleDeleteDoc(name: string) {
+    if (!confirm(`Remover o documento "${name}"? Esta ação não pode ser desfeita.`)) return;
     const { error } = await supabase.storage.from("veiculos-docs").remove([`${id}/${name}`]);
     if (error) { toast.error(translateError(error)); return; }
     toast.success("Documento removido");
@@ -137,6 +138,7 @@ export default function VeiculoDetalhe() {
   }
 
   async function handleDeleteTransacao(txId: string) {
+    if (!confirm("Excluir esta transação? Esta ação não pode ser desfeita.")) return;
     const { error } = await supabase.from("transacoes").delete().eq("id", txId);
     if (error) { toast.error(translateError(error)); return; }
     toast.success("Transação removida");

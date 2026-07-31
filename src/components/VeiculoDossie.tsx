@@ -77,6 +77,7 @@ export default function VeiculoDossie({ veiculo, onClose, isEmissao }: Props) {
   }
 
   async function handleDelete(name: string) {
+    if (!confirm(`Remover o documento "${name}"? Esta ação não pode ser desfeita.`)) return;
     const { error } = await supabase.storage.from("veiculos-docs").remove([`${veiculo.id}/${name}`]);
     if (error) { toast.error(translateError(error)); return; }
     toast.success("Documento removido");

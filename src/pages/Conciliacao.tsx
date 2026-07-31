@@ -433,7 +433,9 @@ export default function Conciliacao() {
   }
 
   async function deleteRegra(id: string) {
-    await supabase.from("regras_categorizacao").delete().eq("id", id);
+    if (!confirm("Remover esta regra de categorização?")) return;
+    const { error } = await supabase.from("regras_categorizacao").delete().eq("id", id);
+    if (error) { toast.error(translateError(error)); return; }
     loadMeta();
   }
 
