@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -26,9 +26,7 @@ export default function CaixaDiario() {
   const [destinoCusto, setDestinoCusto] = useState<"Loja" | "Veículo" | "">("");
   const [form, setForm] = useState({ descricao: "", valor: "", categoria: "", conta_bancaria_id: "", centro_custo_id: "", veiculo_id: "", parcela_atual: "", total_parcelas: "", status: "Pago" });
 
-  useEffect(() => { loadAll(); }, [date, periodo]);
-
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     let query = supabase.from("transacoes")
       .select("*, centros_custo(nome), contas_bancarias(nome)")
       .order("created_at", { ascending: false });
@@ -50,11 +48,19 @@ export default function CaixaDiario() {
       supabase.from("centros_custo").select("*"),
       supabase.from("veiculos").select("id, placa, marca_modelo").not("status", "eq", "Vendido"),
     ]);
+
+    if (tx.error) { console.error("caixa tx error:", tx.error); toast.error("Falha ao carregar transações"); }
+    if (c.error) console.error("contas error:", c.error);
+    if (cc.error) console.error("centros error:", cc.error);
+    if (v.error) console.error("veiculos error:", v.error);
+
     setTransacoes(tx.data ?? []);
     setContas(c.data ?? []);
     setCentros(cc.data ?? []);
     setVeiculos(v.data ?? []);
-  }
+  }, [date, periodo]);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

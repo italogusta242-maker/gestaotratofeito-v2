@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -53,44 +53,53 @@ export default function VeiculoDetalhe() {
   const [loading, setLoading] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (id) loadAll();
+  const loadDocs = useCallback(async () => {
+    if (!id) return;
+    const { data } = await supabase.storage.from("veiculos-docs").list(id, { sortBy: { column: "created_at", order: "desc" } });
+    setDocs(data ?? []);
   }, [id]);
 
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
+    if (!id) return;
     setLoading(true);
     const [v, t, c] = await Promise.all([
-      supabase.from("veiculos").select("*, centros_custo(nome)").eq("id", id!).single(),
-      supabase.from("transacoes").select("*").eq("veiculo_id", id!).order("created_at", { ascending: false }),
+      supabase.from("veiculos").select("*, centros_custo(nome)").eq("id", id).single(),
+      supabase.from("transacoes").select("*").eq("veiculo_id", id).order("created_at", { ascending: false }),
       supabase.from("centros_custo").select("*"),
     ]);
+
+    if (v.error) {
+      console.error("load veiculo failed:", v.error);
+      toast.error("Falha ao carregar veículo");
+    }
+    if (t.error) console.error("load transacoes failed:", t.error);
+    if (c.error) console.error("load centros failed:", c.error);
+
     setCentros(c.data ?? []);
     const veiculoData = v.data;
     setVeiculo(veiculoData);
     setTransacoes(t.data ?? []);
 
-    // Load linked clients
     if (veiculoData?.cliente_compra_id) {
-      const { data: c } = await supabase.from("clientes").select("*").eq("id", veiculoData.cliente_compra_id).single();
-      setClienteCompra(c);
+      const { data: cli } = await supabase.from("clientes").select("*").eq("id", veiculoData.cliente_compra_id).single();
+      setClienteCompra(cli);
     } else {
       setClienteCompra(null);
     }
     if (veiculoData?.cliente_venda_id) {
-      const { data: c } = await supabase.from("clientes").select("*").eq("id", veiculoData.cliente_venda_id).single();
-      setClienteVenda(c);
+      const { data: cli } = await supabase.from("clientes").select("*").eq("id", veiculoData.cliente_venda_id).single();
+      setClienteVenda(cli);
     } else {
       setClienteVenda(null);
     }
 
-    loadDocs();
+    await loadDocs();
     setLoading(false);
-  }
+  }, [id, loadDocs]);
 
-  async function loadDocs() {
-    const { data } = await supabase.storage.from("veiculos-docs").list(id!, { limit: 50 });
-    setDocs(data ?? []);
-  }
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
 
   async function handleStatusChange(newStatus: string) {
     await supabase.from("veiculos").update({ status: newStatus }).eq("id", id!);

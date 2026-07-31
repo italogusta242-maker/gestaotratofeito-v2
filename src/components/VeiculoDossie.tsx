@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -31,16 +31,16 @@ export default function VeiculoDossie({ veiculo, onClose, isEmissao }: Props) {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const loadDocs = useCallback(async () => {
+    const { data } = await supabase.storage.from("veiculos-docs").list(veiculo.id, { limit: 50 });
+    setDocs(data ?? []);
+  }, [veiculo.id]);
+
   useEffect(() => {
     supabase.from("transacoes").select("*").eq("veiculo_id", veiculo.id).order("created_at", { ascending: false })
       .then(({ data }) => setTransacoes(data ?? []));
     loadDocs();
-  }, [veiculo.id]);
-
-  async function loadDocs() {
-    const { data } = await supabase.storage.from("veiculos-docs").list(veiculo.id, { limit: 50 });
-    setDocs(data ?? []);
-  }
+  }, [veiculo.id, loadDocs]);
 
   async function handleStatusChange(newStatus: string) {
     setStatus(newStatus);

@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,52 +32,65 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabKey>("tudo");
   const [loading, setLoading] = useState(true);
 
-  const now = new Date();
-  const mesInicio = startOfMonth(now).toISOString().split("T")[0];
-  const mesFim = endOfMonth(now).toISOString().split("T")[0];
-
-  useEffect(() => {
-    loadAll();
+  const { now, mesInicio, mesFim } = useMemo(() => {
+    const now = new Date();
+    return {
+      now,
+      mesInicio: startOfMonth(now).toISOString().split("T")[0],
+      mesFim: endOfMonth(now).toISOString().split("T")[0],
+    };
   }, []);
 
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     setLoading(true);
     const [txRes, veicRes, fixasRes, contasRes, txAllRes, centrosRes] = await Promise.all([
       supabase.from("transacoes").select("*").order("data_vencimento", { ascending: true }),
       supabase.from("veiculos").select("*, centros_custo(nome)").eq("status", "Em Estoque"),
       supabase.from("contas_fixas").select("*, centros_custo(nome)").eq("ativo", true),
       supabase.from("contas_bancarias").select("*"),
-      // Get paid transactions for bank balance calculation
       supabase.from("transacoes").select("valor, tipo, conta_bancaria_id").eq("status", "Pago").not("conta_bancaria_id", "is", null),
       supabase.from("centros_custo").select("id, nome"),
     ]);
+
+    const errors = [txRes, veicRes, fixasRes, contasRes, txAllRes, centrosRes]
+      .map((r) => r.error)
+      .filter(Boolean);
+    if (errors.length > 0) {
+      console.error("Dashboard load errors:", errors);
+      toast.error("Falha ao carregar alguns dados do dashboard");
+    }
 
     setTransacoes(txRes.data ?? []);
     setVeiculos(veicRes.data ?? []);
     setContasFixas(fixasRes.data ?? []);
     setCentros(centrosRes.data ?? []);
 
-    // Calculate real bank balances
     const contas = contasRes.data ?? [];
     const txAll = txAllRes.data ?? [];
-    const balances = contas.map(c => {
-      const movements = txAll.filter(t => t.conta_bancaria_id === c.id);
-      const totalIn = movements.filter(t => t.tipo === "Receita" || (t.tipo === "Transferencia_Interna" && Number(t.valor) > 0)).reduce((s, t) => s + Number(t.valor), 0);
-      const totalOut = movements.filter(t => t.tipo === "Despesa" || (t.tipo === "Transferencia_Interna" && Number(t.valor) < 0)).reduce((s, t) => s + Math.abs(Number(t.valor)), 0);
+    const balances = contas.map((c) => {
+      const movements = txAll.filter((t) => t.conta_bancaria_id === c.id);
+      const totalIn = movements.filter((t) => t.tipo === "Receita" || (t.tipo === "Transferencia_Interna" && Number(t.valor) > 0)).reduce((s, t) => s + Number(t.valor), 0);
+      const totalOut = movements.filter((t) => t.tipo === "Despesa" || (t.tipo === "Transferencia_Interna" && Number(t.valor) < 0)).reduce((s, t) => s + Math.abs(Number(t.valor)), 0);
       return { nome: c.nome, saldo: Number(c.saldo_inicial) + totalIn - totalOut };
     });
     setSaldosBancarios(balances);
     setLoading(false);
-  }
+  }, []);
 
-  // Filter helpers
-  function filterByCentro(items: any[], tab: TabKey, field = "centro_custo_id") {
-    if (tab === "tudo") return items;
-    const nome = CENTRO_NOMES[tab];
-    const centroId = centros.find(c => c.nome === nome)?.id;
-    if (!centroId) return [];
-    return items.filter(i => i[field] === centroId);
-  }
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  const filterByCentro = useCallback(
+    (items: any[], tab: TabKey, field = "centro_custo_id") => {
+      if (tab === "tudo") return items;
+      const nome = CENTRO_NOMES[tab];
+      const centroId = centros.find((c) => c.nome === nome)?.id;
+      if (!centroId) return [];
+      return items.filter((i) => i[field] === centroId);
+    },
+    [centros],
+  );
 
   const filtered = useMemo(() => {
     const tx = filterByCentro(transacoes, activeTab);
@@ -145,7 +159,7 @@ export default function Dashboard() {
       qtdEstoque: veiculo.length, weeks, atrasados, proximos,
       isCasa: activeTab === "casa", pieData, realizedData
     };
-  }, [transacoes, veiculos, contasFixas, saldosBancarios, activeTab]);
+  }, [transacoes, veiculos, contasFixas, saldosBancarios, activeTab, filterByCentro, mesInicio, mesFim, now]);
 
   const isCasa = activeTab === "casa";
 
