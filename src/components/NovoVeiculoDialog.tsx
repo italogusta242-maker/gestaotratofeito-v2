@@ -6,22 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { CurrencyInput } from "@/components/ui/masked-input";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import ClienteSelector from "@/components/ClienteSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { translateError } from "@/lib/supabase-errors";
+import { digitsToDecimal, decimalToDigits } from "@/lib/masks";
 import type { CentroCusto } from "@/lib/db-types";
-
-interface DeducaoLinha {
-  id: string;
-  descricao: string;
-  valor: string;
-}
-
-function novaDeducao(descricao = ""): DeducaoLinha {
-  return { id: crypto.randomUUID(), descricao, valor: "" };
-}
 
 interface Props {
   open: boolean;
@@ -34,25 +27,43 @@ interface Props {
   title?: string;
 }
 
+interface DeducaoLinha {
+  id: string;
+  descricao: string;
+  valor: number;
+}
+
+function novaDeducao(descricao = ""): DeducaoLinha {
+  return { id: crypto.randomUUID(), descricao, valor: 0 };
+}
+
+const ESPECIES = ["Automóvel", "Motocicleta", "Caminhonete", "Caminhão", "Utilitário", "Ônibus", "Outro"];
+const CATEGORIAS = ["Particular", "Aluguel", "Comercial", "Oficial", "Diplomática"];
+const COMBUSTIVEIS = [
+  { v: "FLEX", l: "Flex" }, { v: "GASOLINA", l: "Gasolina" }, { v: "ETANOL", l: "Etanol" },
+  { v: "DIESEL", l: "Diesel" }, { v: "GNV", l: "GNV" }, { v: "ELÉTRICO", l: "Elétrico" }, { v: "HÍBRIDO", l: "Híbrido" },
+];
+const FORMAS_PAGAMENTO = ["PIX", "Dinheiro", "Transferência", "Cartão Débito", "Cartão Crédito", "Cheque", "Financiamento Banco", "Veículo na Troca"];
+const ATALHOS_DEDUCAO = ["IPVA", "Multas", "Licenciamento", "Saldo de Quitação", "Comissão", "Repasse a Terceiro", "Frete/Transporte"];
+
 export default function NovoVeiculoDialog({ open, onClose, defaultValues, title }: Props) {
   const { user } = useAuth();
   const [centros, setCentros] = useState<CentroCusto[]>([]);
+
   const [form, setForm] = useState({
     placa: "", marca_modelo: "", ano: "", ano_modelo: "", cor: "", renavam: "", chassi: "", combustivel: "",
     quilometragem: "",
     especie: "",
     categoria: "",
     alienacao_fiduciaria: "",
-    valor_aquisicao: defaultValues?.valor_aquisicao ?? "",
-    debitos_veiculo: "",
-    ipva: "",
-    multas: "",
-    licenciamento: "",
-    desconto: "",
+    valor_aquisicao: parseFloat(defaultValues?.valor_aquisicao ?? "") || 0,
+    valor_venda: 0,
+    desconto: 0,
     forma_pagamento: "",
     centro_custo_id: defaultValues?.centro_custo_id ?? "",
     data_entrada_patio: new Date().toISOString().split("T")[0],
   });
+
   const [clienteCompraId, setClienteCompraId] = useState<string | null>(defaultValues?.cliente_compra_id ?? null);
   const [isConsignment, setIsConsignment] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -61,13 +72,13 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
   function addDeducao(descricao = "") {
     setDeducoes(d => [...d, novaDeducao(descricao)]);
   }
-  function updateDeducao(id: string, field: keyof DeducaoLinha, value: string) {
-    setDeducoes(d => d.map(x => x.id === id ? { ...x, [field]: value } : x));
+  function updateDeducao(id: string, field: "descricao" | "valor", value: string | number) {
+    setDeducoes(d => d.map(x => x.id === id ? { ...x, [field]: value } as DeducaoLinha : x));
   }
   function removeDeducao(id: string) {
     setDeducoes(d => d.filter(x => x.id !== id));
   }
-  const totalDeducoes = deducoes.reduce((s, d) => s + (parseFloat(d.valor) || 0), 0);
+  const totalDeducoes = deducoes.reduce((s, d) => s + (d.valor || 0), 0);
 
   useEffect(() => {
     supabase.from("centros_custo").select("*").then(({ data }) => setCentros(data ?? []));
@@ -77,7 +88,7 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
     if (open && defaultValues) {
       setForm(f => ({
         ...f,
-        valor_aquisicao: defaultValues.valor_aquisicao ?? f.valor_aquisicao,
+        valor_aquisicao: parseFloat(defaultValues.valor_aquisicao ?? "") || f.valor_aquisicao,
         centro_custo_id: defaultValues.centro_custo_id ?? f.centro_custo_id,
       }));
       setClienteCompraId(defaultValues.cliente_compra_id ?? null);
@@ -87,19 +98,12 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (loading) return;
-    const valorNum = parseFloat(form.valor_aquisicao) || 0;
-    if (valorNum < 0) { toast.error("Valor de aquisição inválido"); return; }
+    if (form.valor_aquisicao < 0) { toast.error("Valor de aquisição inválido"); return; }
     if (isConsignment && !clienteCompraId) {
       toast.error("Selecione o dono do veículo consignado");
       return;
     }
     setLoading(true);
-    const ipvaNum = parseFloat(form.ipva) || 0;
-    const multasNum = parseFloat(form.multas) || 0;
-    const licenciamentoNum = parseFloat(form.licenciamento) || 0;
-    const descontoNum = parseFloat(form.desconto) || 0;
-
-    const kmNum = parseInt(form.quilometragem, 10);
 
     const { data, error } = await supabase.from("veiculos").insert({
       placa: form.placa.toUpperCase(),
@@ -110,31 +114,28 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
       renavam: form.renavam,
       chassi: form.chassi.toUpperCase() || null,
       combustivel: form.combustivel || null,
-      quilometragem: Number.isFinite(kmNum) ? kmNum : null,
+      quilometragem: form.quilometragem ? parseInt(form.quilometragem, 10) : null,
       especie: form.especie || null,
       categoria: form.categoria || null,
       alienacao_fiduciaria: form.alienacao_fiduciaria.trim() || null,
-      valor_aquisicao: parseFloat(form.valor_aquisicao) || 0,
-      ipva: ipvaNum,
-      multas: multasNum,
-      licenciamento: licenciamentoNum,
-      desconto: descontoNum,
+      valor_aquisicao: form.valor_aquisicao || 0,
+      valor_venda: form.valor_venda || 0,
+      desconto: form.desconto || 0,
       forma_pagamento: form.forma_pagamento || null,
       centro_custo_id: form.centro_custo_id || null,
       cliente_compra_id: clienteCompraId,
       is_consignment: isConsignment,
       data_entrada_patio: form.data_entrada_patio || new Date().toISOString().split("T")[0],
     }).select("id").single();
-    
+
     if (error) { toast.error(translateError(error)); setLoading(false); return; }
 
-    const debitosNum = parseFloat(form.debitos_veiculo) || 0;
     const txsToInsert = [];
 
-    if (valorNum > 0) {
+    if (form.valor_aquisicao > 0) {
       txsToInsert.push({
         descricao: `Compra de Veículo - ${form.placa.toUpperCase()}`,
-        valor: valorNum,
+        valor: form.valor_aquisicao,
         tipo: "Despesa",
         status: "Pendente",
         data_vencimento: form.data_entrada_patio || new Date().toISOString().split("T")[0],
@@ -145,44 +146,8 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
       });
     }
 
-    if (debitosNum > 0) {
-      txsToInsert.push({
-        descricao: `Débitos de Veículo - ${form.placa.toUpperCase()}`,
-        valor: debitosNum,
-        tipo: "Despesa",
-        status: "Pendente",
-        data_vencimento: form.data_entrada_patio || new Date().toISOString().split("T")[0],
-        centro_custo_id: form.centro_custo_id || null,
-        veiculo_id: data?.id,
-        categoria: "Despesa de Veículo",
-        user_id: user?.id,
-      });
-    }
-
-    const extraDebts: [number, string, string][] = [
-      [ipvaNum, "IPVA", "IPVA"],
-      [multasNum, "Multas", "Multas"],
-      [licenciamentoNum, "Licenciamento", "Licenciamento"],
-    ];
-    for (const [valor, label, categoria] of extraDebts) {
-      if (valor > 0) {
-        txsToInsert.push({
-          descricao: `${label} - ${form.placa.toUpperCase()}`,
-          valor,
-          tipo: "Despesa",
-          status: "Pendente",
-          data_vencimento: form.data_entrada_patio || new Date().toISOString().split("T")[0],
-          centro_custo_id: form.centro_custo_id || null,
-          veiculo_id: data?.id,
-          categoria,
-          user_id: user?.id,
-        });
-      }
-    }
-
-    // Deduções personalizadas (Saldo de Quitação, débitos avulsos, etc.)
     for (const d of deducoes) {
-      const v = parseFloat(d.valor) || 0;
+      const v = d.valor || 0;
       const desc = d.descricao.trim();
       if (v > 0 && desc) {
         txsToInsert.push({
@@ -204,7 +169,7 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
     }
 
     setLoading(false);
-    toast.success("Veículo e pendências cadastradas com sucesso!");
+    toast.success("Veículo cadastrado com sucesso!");
     onClose(data?.id);
   }
 
@@ -212,153 +177,182 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
 
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{title ?? "Novo Veículo"}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Placa</Label>
-              <Input value={form.placa} onChange={e => setForm({ ...form, placa: upper(e.target.value) })} required className="uppercase" />
-            </div>
-            <div><Label>Marca/Modelo</Label><Input value={form.marca_modelo} onChange={e => setForm({ ...form, marca_modelo: upper(e.target.value) })} required className="uppercase" /></div>
-            <div><Label>Ano Fabricação</Label><Input value={form.ano} onChange={e => setForm({ ...form, ano: e.target.value })} required /></div>
-            <div><Label>Ano Modelo</Label><Input value={form.ano_modelo} onChange={e => setForm({ ...form, ano_modelo: e.target.value })} /></div>
-            <div><Label>Cor</Label><Input value={form.cor} onChange={e => setForm({ ...form, cor: upper(e.target.value) })} className="uppercase" /></div>
-            <div><Label>Renavam</Label><Input value={form.renavam} onChange={e => setForm({ ...form, renavam: e.target.value })} /></div>
-            <div><Label>Chassi</Label><Input value={form.chassi} onChange={e => setForm({ ...form, chassi: upper(e.target.value) })} className="uppercase" /></div>
-            <div><Label>Quilometragem (KM)</Label><Input type="number" min="0" value={form.quilometragem} onChange={e => setForm({ ...form, quilometragem: e.target.value })} placeholder="Ex: 45000" /></div>
-            <div>
-              <Label>Espécie/Tipo</Label>
-              <Select value={form.especie} onValueChange={v => setForm({ ...form, especie: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Automóvel">Automóvel</SelectItem>
-                  <SelectItem value="Motocicleta">Motocicleta</SelectItem>
-                  <SelectItem value="Caminhonete">Caminhonete</SelectItem>
-                  <SelectItem value="Caminhão">Caminhão</SelectItem>
-                  <SelectItem value="Utilitário">Utilitário</SelectItem>
-                  <SelectItem value="Ônibus">Ônibus</SelectItem>
-                  <SelectItem value="Outro">Outro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Categoria</Label>
-              <Select value={form.categoria} onValueChange={v => setForm({ ...form, categoria: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Particular">Particular</SelectItem>
-                  <SelectItem value="Aluguel">Aluguel</SelectItem>
-                  <SelectItem value="Comercial">Comercial</SelectItem>
-                  <SelectItem value="Oficial">Oficial</SelectItem>
-                  <SelectItem value="Diplomática">Diplomática</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div><Label>Alienação Fiduciária</Label><Input value={form.alienacao_fiduciaria} onChange={e => setForm({ ...form, alienacao_fiduciaria: e.target.value })} placeholder="Ex: Sem, Banco XYZ" /></div>
-            <div>
-              <Label>Combustível</Label>
-              <Select value={form.combustivel} onValueChange={v => setForm({ ...form, combustivel: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FLEX">Flex</SelectItem>
-                  <SelectItem value="GASOLINA">Gasolina</SelectItem>
-                  <SelectItem value="ETANOL">Etanol</SelectItem>
-                  <SelectItem value="DIESEL">Diesel</SelectItem>
-                  <SelectItem value="GNV">GNV</SelectItem>
-                  <SelectItem value="ELÉTRICO">Elétrico</SelectItem>
-                  <SelectItem value="HÍBRIDO">Híbrido</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div><Label>Valor Aquisição (R$)</Label><Input type="number" step="0.01" value={form.valor_aquisicao} onChange={e => setForm({ ...form, valor_aquisicao: e.target.value })} required /></div>
-            <div><Label>Desconto (R$)</Label><Input type="number" step="0.01" value={form.desconto} onChange={e => setForm({ ...form, desconto: e.target.value })} placeholder="Opcional" /></div>
-            <div><Label>Débitos Gerais (R$)</Label><Input type="number" step="0.01" value={form.debitos_veiculo} onChange={e => setForm({ ...form, debitos_veiculo: e.target.value })} placeholder="Opcional" /></div>
-            <div><Label>IPVA (R$)</Label><Input type="number" step="0.01" value={form.ipva} onChange={e => setForm({ ...form, ipva: e.target.value })} placeholder="Opcional" /></div>
-            <div><Label>Multas (R$)</Label><Input type="number" step="0.01" value={form.multas} onChange={e => setForm({ ...form, multas: e.target.value })} placeholder="Opcional" /></div>
-            <div><Label>Licenciamento (R$)</Label><Input type="number" step="0.01" value={form.licenciamento} onChange={e => setForm({ ...form, licenciamento: e.target.value })} placeholder="Opcional" /></div>
-            <div>
-              <Label>Forma de Pagamento</Label>
-              <Select value={form.forma_pagamento} onValueChange={v => setForm({ ...form, forma_pagamento: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PIX">PIX</SelectItem>
-                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                  <SelectItem value="Transferência">Transferência</SelectItem>
-                  <SelectItem value="Cartão Débito">Cartão Débito</SelectItem>
-                  <SelectItem value="Cartão Crédito">Cartão Crédito</SelectItem>
-                  <SelectItem value="Cheque">Cheque</SelectItem>
-                  <SelectItem value="Financiamento Banco">Financiamento Banco</SelectItem>
-                  <SelectItem value="Veículo na Troca">Veículo na Troca</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div><Label>Data Entrada Pátio</Label><Input type="date" value={form.data_entrada_patio} onChange={e => setForm({ ...form, data_entrada_patio: e.target.value })} /></div>
-          </div>
+          <Accordion type="multiple" defaultValue={["identificacao", "financeiro"]} className="space-y-2">
 
-          {/* Bloco de deduções personalizadas — vira transação de despesa e aparece no contrato de compra */}
-          <div className="border rounded-lg p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-semibold text-sm">Outras Deduções</h4>
-                <p className="text-[11px] text-muted-foreground">Ex: Saldo de Quitação, débito na financeira, comissão. Cada uma vira uma despesa pendente vinculada ao veículo.</p>
-              </div>
-              <Button type="button" size="sm" variant="outline" onClick={() => addDeducao()} className="gap-1">
-                <Plus className="h-3 w-3" /> Adicionar
-              </Button>
-            </div>
-
-            {/* Atalhos rápidos */}
-            <div className="flex flex-wrap gap-1">
-              {["Saldo de Quitação", "Comissão", "Repasse a Terceiro", "Frete/Transporte"].map(sug => (
-                <Button key={sug} type="button" size="sm" variant="secondary" className="h-6 text-[11px]" onClick={() => addDeducao(sug)}>
-                  + {sug}
-                </Button>
-              ))}
-            </div>
-
-            {deducoes.length === 0 && (
-              <p className="text-xs text-muted-foreground italic py-1">Nenhuma dedução personalizada.</p>
-            )}
-
-            {deducoes.map(d => (
-              <div key={d.id} className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-7">
-                  <Label className="text-xs">Descrição</Label>
-                  <Input className="h-8 text-sm" value={d.descricao} onChange={e => updateDeducao(d.id, "descricao", e.target.value)} placeholder="Ex: Saldo de Quitação Financeira XYZ" />
+            {/* Identificação */}
+            <AccordionItem value="identificacao" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-semibold hover:no-underline">
+                🚗 Identificação
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div>
+                    <Label>Placa *</Label>
+                    <Input value={form.placa} onChange={e => setForm({ ...form, placa: upper(e.target.value) })} required className="uppercase" />
+                  </div>
+                  <div>
+                    <Label>Marca/Modelo *</Label>
+                    <Input value={form.marca_modelo} onChange={e => setForm({ ...form, marca_modelo: upper(e.target.value) })} required className="uppercase" />
+                  </div>
+                  <div>
+                    <Label>Ano Fabricação *</Label>
+                    <Input value={form.ano} onChange={e => setForm({ ...form, ano: e.target.value })} required inputMode="numeric" maxLength={4} />
+                  </div>
+                  <div>
+                    <Label>Ano Modelo</Label>
+                    <Input value={form.ano_modelo} onChange={e => setForm({ ...form, ano_modelo: e.target.value })} inputMode="numeric" maxLength={4} />
+                  </div>
+                  <div>
+                    <Label>Cor</Label>
+                    <Input value={form.cor} onChange={e => setForm({ ...form, cor: upper(e.target.value) })} className="uppercase" />
+                  </div>
+                  <div>
+                    <Label>Combustível</Label>
+                    <Select value={form.combustivel} onValueChange={v => setForm({ ...form, combustivel: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>{COMBUSTIVEIS.map(c => <SelectItem key={c.v} value={c.v}>{c.l}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="col-span-4">
-                  <Label className="text-xs">Valor (R$)</Label>
-                  <Input className="h-8 text-sm" type="number" step="0.01" value={d.valor} onChange={e => updateDeducao(d.id, "valor", e.target.value)} />
-                </div>
-                <div className="col-span-1 flex justify-center">
-                  <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => removeDeducao(d.id)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              </AccordionContent>
+            </AccordionItem>
 
-            {totalDeducoes > 0 && (
-              <p className="text-xs text-right pt-1 border-t">
-                Total dessas deduções: <strong>R$ {totalDeducoes.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong>
-              </p>
-            )}
-          </div>
+            {/* Documentação */}
+            <AccordionItem value="documentacao" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-semibold hover:no-underline">
+                📄 Documentação
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div><Label>Renavam</Label><Input value={form.renavam} onChange={e => setForm({ ...form, renavam: e.target.value })} inputMode="numeric" /></div>
+                  <div><Label>Chassi</Label><Input value={form.chassi} onChange={e => setForm({ ...form, chassi: upper(e.target.value) })} className="uppercase" /></div>
+                  <div><Label>Quilometragem (KM)</Label><Input type="number" min="0" value={form.quilometragem} onChange={e => setForm({ ...form, quilometragem: e.target.value })} placeholder="Ex: 45000" inputMode="numeric" /></div>
+                  <div>
+                    <Label>Espécie/Tipo</Label>
+                    <Select value={form.especie} onValueChange={v => setForm({ ...form, especie: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>{ESPECIES.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Categoria</Label>
+                    <Select value={form.categoria} onValueChange={v => setForm({ ...form, categoria: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>{CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>Alienação Fiduciária</Label><Input value={form.alienacao_fiduciaria} onChange={e => setForm({ ...form, alienacao_fiduciaria: e.target.value })} placeholder="Ex: Sem, Banco XYZ" /></div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-          <div className="flex items-center gap-2">
-            <Switch checked={isConsignment} onCheckedChange={setIsConsignment} />
-            <Label>Veículo Consignado</Label>
-          </div>
-          <ClienteSelector label={isConsignment ? "Dono do Veículo (obrigatório)" : "Comprado de (Cliente)"} value={clienteCompraId} onChange={setClienteCompraId} />
-          <div>
-            <Label>Centro de Custo</Label>
-            <Select value={form.centro_custo_id} onValueChange={v => setForm({ ...form, centro_custo_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>{centros.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <Button type="submit" className="w-full" disabled={loading}>{loading ? "Salvando..." : "Cadastrar Veículo"}</Button>
+            {/* Financeiro */}
+            <AccordionItem value="financeiro" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-semibold hover:no-underline">
+                💰 Financeiro
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div>
+                    <Label>Valor de Aquisição *</Label>
+                    <CurrencyInput value={form.valor_aquisicao} onChange={(v) => setForm({ ...form, valor_aquisicao: v })} />
+                  </div>
+                  <div>
+                    <Label>Valor de Venda (previsto)</Label>
+                    <CurrencyInput value={form.valor_venda} onChange={(v) => setForm({ ...form, valor_venda: v })} />
+                  </div>
+                  <div>
+                    <Label>Desconto</Label>
+                    <CurrencyInput value={form.desconto} onChange={(v) => setForm({ ...form, desconto: v })} />
+                  </div>
+                  <div>
+                    <Label>Forma de Pagamento</Label>
+                    <Select value={form.forma_pagamento} onValueChange={v => setForm({ ...form, forma_pagamento: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>{FORMAS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Deduções */}
+            <AccordionItem value="deducoes" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-semibold hover:no-underline">
+                📉 Deduções {deducoes.length > 0 && <span className="ml-2 text-xs font-normal text-muted-foreground">({deducoes.length} · R$ {totalDeducoes.toLocaleString("pt-BR", { minimumFractionDigits: 2 })})</span>}
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3 pt-2">
+                  <p className="text-[11px] text-muted-foreground">Cada linha vira uma despesa vinculada ao veículo. Aparece automaticamente no contrato de compra.</p>
+
+                  {/* Atalhos rápidos */}
+                  <div className="flex flex-wrap gap-1">
+                    {ATALHOS_DEDUCAO.map(sug => (
+                      <Button key={sug} type="button" size="sm" variant="secondary" className="h-6 text-[11px]" onClick={() => addDeducao(sug)}>
+                        + {sug}
+                      </Button>
+                    ))}
+                    <Button type="button" size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => addDeducao()}>
+                      <Plus className="h-3 w-3 mr-1" /> Outra
+                    </Button>
+                  </div>
+
+                  {deducoes.length === 0 && <p className="text-xs text-muted-foreground italic">Nenhuma dedução.</p>}
+
+                  {deducoes.map(d => (
+                    <div key={d.id} className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-7">
+                        <Label className="text-xs">Descrição</Label>
+                        <Input className="h-8 text-sm" value={d.descricao} onChange={e => updateDeducao(d.id, "descricao", e.target.value)} placeholder="Ex: IPVA atrasado" />
+                      </div>
+                      <div className="col-span-4">
+                        <Label className="text-xs">Valor</Label>
+                        <CurrencyInput className="h-8 text-sm" value={d.valor} onChange={(v) => updateDeducao(d.id, "valor", v)} />
+                      </div>
+                      <div className="col-span-1 flex justify-center">
+                        <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => removeDeducao(d.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Origem */}
+            <AccordionItem value="origem" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-semibold hover:no-underline">
+                🏢 Origem
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center gap-2">
+                    <Switch checked={isConsignment} onCheckedChange={setIsConsignment} />
+                    <Label>Veículo Consignado</Label>
+                  </div>
+                  <ClienteSelector label={isConsignment ? "Dono do Veículo (obrigatório)" : "Comprado de (Cliente)"} value={clienteCompraId} onChange={setClienteCompraId} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Centro de Custo</Label>
+                      <Select value={form.centro_custo_id} onValueChange={v => setForm({ ...form, centro_custo_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>{centros.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div><Label>Data Entrada Pátio</Label><Input type="date" value={form.data_entrada_patio} onChange={e => setForm({ ...form, data_entrada_patio: e.target.value })} /></div>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Salvando..." : "Cadastrar Veículo"}
+          </Button>
         </form>
       </DialogContent>
     </Dialog>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CurrencyInput } from "@/components/ui/masked-input";
 import { toast } from "sonner";
 import ClienteSelector from "@/components/ClienteSelector";
 import NovoVeiculoDialog from "@/components/NovoVeiculoDialog";
@@ -202,7 +203,7 @@ export default function VendaDialog({ veiculo, onClose }: Props) {
               </div>
             )}
             <ClienteSelector label="Comprador (Cliente)" value={clienteVendaId} onChange={setClienteVendaId} />
-            <div><Label>Valor Total de Venda (R$)</Label><Input type="number" step="0.01" value={valorVenda} onChange={(e) => setValorVenda(e.target.value)} required /></div>
+            <div><Label>Valor Total de Venda</Label><CurrencyInput value={parseFloat(valorVenda) || 0} onChange={(v) => setValorVenda(String(v))} /></div>
 
             {/* Pagamento Múltiplo */}
             <div className="border rounded-lg p-3 space-y-3">
@@ -223,8 +224,8 @@ export default function VendaDialog({ veiculo, onClose }: Props) {
                     </Select>
                   </div>
                   <div className="col-span-3">
-                    <Label className="text-xs">Valor (R$)</Label>
-                    <Input type="number" step="0.01" className="h-9" value={p.valor} onChange={(e) => updateLinha(p.id, "valor", e.target.value)} required />
+                    <Label className="text-xs">Valor</Label>
+                    <CurrencyInput className="h-9" value={parseFloat(p.valor) || 0} onChange={(v) => updateLinha(p.id, "valor", String(v))} />
                   </div>
                   {p.forma !== "Veículo na Troca" ? (
                     <div className="col-span-3">

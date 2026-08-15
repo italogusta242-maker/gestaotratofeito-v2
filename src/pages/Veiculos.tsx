@@ -16,6 +16,7 @@ import DespesaDialog from "@/components/DespesaDialog";
 import VendaDialog from "@/components/VendaDialog";
 import ClienteSelector from "@/components/ClienteSelector";
 import NovoVeiculoDialog from "@/components/NovoVeiculoDialog";
+import { CurrencyInput } from "@/components/ui/masked-input";
 import { differenceInDays } from "date-fns";
 import { formatPlaca, cleanPlaca } from "@/lib/format-placa";
 import { formatBRL, upperCase } from "@/lib/format";
@@ -415,7 +416,7 @@ export default function Veiculos() {
                     <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div><Label>Valor Aquisição</Label><Input type="number" step="0.01" value={form.valor_aquisicao} onChange={(e) => setForm({ ...form, valor_aquisicao: e.target.value })} required /></div>
+                <div><Label>Valor Aquisição</Label><CurrencyInput value={parseFloat(form.valor_aquisicao) || 0} onChange={(v) => setForm({ ...form, valor_aquisicao: String(v) })} /></div>
                 <div><Label>Data Entrada Pátio</Label><Input type="date" value={form.data_entrada_patio} onChange={(e) => setForm({ ...form, data_entrada_patio: e.target.value })} /></div>
               </div>
               <div className="flex items-center gap-2">

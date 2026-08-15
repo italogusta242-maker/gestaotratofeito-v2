@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CurrencyInput } from "@/components/ui/masked-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -199,7 +200,7 @@ export default function ContasBancarias() {
                     <SelectContent>{contas.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div><Label>Valor (R$)</Label><Input type="number" step="0.01" value={transForm.valor} onChange={(e) => setTransForm({ ...transForm, valor: e.target.value })} required /></div>
+                <div><Label>Valor</Label><CurrencyInput value={parseFloat(transForm.valor) || 0} onChange={(v) => setTransForm({ ...transForm, valor: String(v) })} /></div>
                 <div><Label>Data</Label><Input type="date" value={transForm.data} onChange={(e) => setTransForm({ ...transForm, data: e.target.value })} required /></div>
                 <div><Label>Descrição</Label><Input value={transForm.descricao} onChange={(e) => setTransForm({ ...transForm, descricao: e.target.value })} required /></div>
                 <Button type="submit" className="w-full">Confirmar Transferência</Button>
@@ -223,7 +224,7 @@ export default function ContasBancarias() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Saldo Inicial (R$)</Label><Input type="number" step="0.01" value={form.saldo_inicial} onChange={(e) => setForm({ ...form, saldo_inicial: e.target.value })} /></div>
+                <div><Label>Saldo Inicial</Label><CurrencyInput value={parseFloat(form.saldo_inicial) || 0} onChange={(v) => setForm({ ...form, saldo_inicial: String(v) })} /></div>
                 <Button type="submit" className="w-full">Salvar</Button>
               </form>
             </DialogContent>

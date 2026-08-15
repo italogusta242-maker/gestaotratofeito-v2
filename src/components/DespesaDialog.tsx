@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CurrencyInput } from "@/components/ui/masked-input";
 import { toast } from "sonner";
 import { translateError } from "@/lib/supabase-errors";
 import { validateDespesa } from "@/lib/despesa-validation";
@@ -74,7 +75,7 @@ export default function DespesaDialog({ veiculo, onClose }: Props) {
           <div><Label>Peça / Serviço (Opcional)</Label><Input value={form.peca_servico} onChange={(e) => setForm({ ...form, peca_servico: e.target.value })} placeholder="Ex: Pintura ou Calota" /></div>
           <div className="grid grid-cols-2 gap-2">
             <div><Label>Data</Label><Input type="date" value={form.data_ocorrencia} onChange={(e) => setForm({ ...form, data_ocorrencia: e.target.value })} required /></div>
-            <div><Label>Valor (R$)</Label><Input type="number" step="0.01" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} required /></div>
+            <div><Label>Valor</Label><CurrencyInput value={parseFloat(form.valor) || 0} onChange={(v) => setForm({ ...form, valor: String(v) })} /></div>
           </div>
           <div><Label>Categoria</Label><Input value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} placeholder="Ex: Oficina, Taxa, Documentação" /></div>
           <div><Label>Conta</Label>

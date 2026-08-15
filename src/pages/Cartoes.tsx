@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CurrencyInput } from "@/components/ui/masked-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -150,7 +151,7 @@ export default function Cartoes() {
                   <div className="grid grid-cols-2 gap-3">
                     <div><Label>Nome</Label><Input value={cartaoForm.nome} onChange={(e) => setCartaoForm({ ...cartaoForm, nome: e.target.value })} required /></div>
                     <div><Label>Bandeira</Label><Input value={cartaoForm.bandeira} onChange={(e) => setCartaoForm({ ...cartaoForm, bandeira: e.target.value })} placeholder="Visa, Master..." /></div>
-                    <div><Label>Limite</Label><Input type="number" step="0.01" value={cartaoForm.limite} onChange={(e) => setCartaoForm({ ...cartaoForm, limite: e.target.value })} /></div>
+                    <div><Label>Limite</Label><CurrencyInput value={parseFloat(cartaoForm.limite) || 0} onChange={(v) => setCartaoForm({ ...cartaoForm, limite: String(v) })} /></div>
                     <div><Label>Dia Fechamento</Label><Input type="number" min="1" max="31" value={cartaoForm.dia_fechamento} onChange={(e) => setCartaoForm({ ...cartaoForm, dia_fechamento: e.target.value })} /></div>
                     <div><Label>Dia Vencimento</Label><Input type="number" min="1" max="31" value={cartaoForm.dia_vencimento} onChange={(e) => setCartaoForm({ ...cartaoForm, dia_vencimento: e.target.value })} /></div>
                   </div>
@@ -173,7 +174,7 @@ export default function Cartoes() {
                   </div>
                   <div><Label>Descrição</Label><Input value={parcelaForm.descricao} onChange={(e) => setParcelaForm({ ...parcelaForm, descricao: e.target.value })} required /></div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><Label>Valor Total (R$)</Label><Input type="number" step="0.01" value={parcelaForm.valor_total} onChange={(e) => setParcelaForm({ ...parcelaForm, valor_total: e.target.value })} required /></div>
+                    <div><Label>Valor Total</Label><CurrencyInput value={parseFloat(parcelaForm.valor_total) || 0} onChange={(v) => setParcelaForm({ ...parcelaForm, valor_total: String(v) })} /></div>
                     <div><Label>Nº de Parcelas</Label><Input type="number" min="1" value={parcelaForm.numero_parcelas} onChange={(e) => setParcelaForm({ ...parcelaForm, numero_parcelas: e.target.value })} required /></div>
                   </div>
                   <div><Label>Data 1º Vencimento</Label><Input type="date" value={parcelaForm.data_primeiro_vencimento} onChange={(e) => setParcelaForm({ ...parcelaForm, data_primeiro_vencimento: e.target.value })} required /></div>

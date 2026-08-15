@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CurrencyInput } from "@/components/ui/masked-input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -169,8 +170,8 @@ export default function Financiamentos() {
               <form onSubmit={addFinanciamento} className="space-y-3">
                 <div><Label>Descrição</Label><Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} required /></div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Valor Total</Label><Input type="number" step="0.01" value={form.valor_total} onChange={(e) => setForm({ ...form, valor_total: e.target.value })} required /></div>
-                  <div><Label>Valor Parcela</Label><Input type="number" step="0.01" value={form.valor_parcela} onChange={(e) => setForm({ ...form, valor_parcela: e.target.value })} required /></div>
+                  <div><Label>Valor Total</Label><CurrencyInput value={parseFloat(form.valor_total) || 0} onChange={(v) => setForm({ ...form, valor_total: String(v) })} /></div>
+                  <div><Label>Valor Parcela</Label><CurrencyInput value={parseFloat(form.valor_parcela) || 0} onChange={(v) => setForm({ ...form, valor_parcela: String(v) })} /></div>
                   <div><Label>Total Parcelas</Label><Input type="number" min="1" value={form.total_parcelas} onChange={(e) => setForm({ ...form, total_parcelas: e.target.value })} required /></div>
                   <div><Label>Taxa Juros (%)</Label><Input type="number" step="0.01" value={form.taxa_juros} onChange={(e) => setForm({ ...form, taxa_juros: e.target.value })} /></div>
                 </div>

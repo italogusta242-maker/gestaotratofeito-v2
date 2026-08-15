@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { CurrencyInput } from "@/components/ui/masked-input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -18,7 +20,6 @@ import DespesaDialog from "@/components/DespesaDialog";
 import VendaDialog from "@/components/VendaDialog";
 import ClienteSelector from "@/components/ClienteSelector";
 import { formatBRL } from "@/lib/format";
-import { syncDespesaCategoria } from "@/lib/veiculo-despesas";
 import type { VeiculoComCentro, Cliente, Transacao, CentroCusto } from "@/lib/db-types";
 import { translateError } from "@/lib/supabase-errors";
 
@@ -54,7 +55,7 @@ export default function VeiculoDetalhe() {
   const [showProcuracao, setShowProcuracao] = useState(false);
   const [tipoReconhecimento, setTipoReconhecimento] = useState("GOV.BR");
   const [editForm, setEditForm] = useState<Record<string, string | number | null>>({});
-  const [editDeducoes, setEditDeducoes] = useState<{ id: string | null; txId: string | null; descricao: string; valor: string }[]>([]);
+  const [editDeducoes, setEditDeducoes] = useState<{ id: string; txId: string | null; descricao: string; valor: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -221,11 +222,7 @@ export default function VeiculoDetalhe() {
       alienacao_fiduciaria: veiculo.alienacao_fiduciaria || "",
       valor_aquisicao: veiculo.valor_aquisicao,
       valor_venda: veiculo.valor_venda || 0,
-      ipva: veiculo.ipva ?? "",
-      multas: veiculo.multas ?? "",
-      licenciamento: veiculo.licenciamento ?? "",
-      desconto: veiculo.desconto ?? "",
-      debitos_gerais: transacoes.find(t => t.categoria === "Despesa de Veículo")?.valor ?? "",
+      desconto: veiculo.desconto ?? 0,
       forma_pagamento: veiculo.forma_pagamento || "",
       is_consignment: veiculo.is_consignment ? "true" : "false",
       data_entrada_patio: veiculo.data_entrada_patio || "",
@@ -233,14 +230,15 @@ export default function VeiculoDetalhe() {
       cliente_compra_id: veiculo.cliente_compra_id || null,
       cliente_venda_id: veiculo.cliente_venda_id || null,
     });
-    // Carrega deduções personalizadas existentes (categoria "Dedução")
+    // Carrega TODAS as deduções (novo formato "Dedução" + retrocompatibilidade com IPVA/Multas/Licenciamento/Despesa de Veículo)
+    const CATS_DEDUCAO = ["Dedução", "IPVA", "Multas", "Licenciamento", "Despesa de Veículo"];
     const existentes = transacoes
-      .filter(t => t.categoria === "Dedução" && t.tipo === "Despesa")
+      .filter(t => t.categoria != null && CATS_DEDUCAO.includes(t.categoria) && t.tipo === "Despesa")
       .map(t => ({
         id: crypto.randomUUID(),
         txId: t.id,
         descricao: t.descricao.replace(new RegExp(` - ${veiculo.placa}$`), ""),
-        valor: String(t.valor),
+        valor: Number(t.valor),
       }));
     setEditDeducoes(existentes);
     setShowEdit(true);
@@ -250,34 +248,26 @@ export default function VeiculoDetalhe() {
     e.preventDefault();
     if (!veiculo || !id) return;
 
-    const ipvaNum = parseFloat(String(editForm.ipva)) || 0;
-    const multasNum = parseFloat(String(editForm.multas)) || 0;
-    const licenciamentoNum = parseFloat(String(editForm.licenciamento)) || 0;
-    const descontoNum = parseFloat(String(editForm.desconto)) || 0;
-    const debitosGeraisNum = parseFloat(String(editForm.debitos_gerais)) || 0;
-    const placaUpper = editForm.placa.toUpperCase();
+    const placaUpper = String(editForm.placa).toUpperCase();
     const dataVenc = (editForm.data_entrada_patio as string) || veiculo.data_entrada_patio || new Date().toISOString().split("T")[0];
     const centroId = (editForm.centro_custo_id as string) || null;
 
     const { error } = await supabase.from("veiculos").update({
       placa: placaUpper,
-      marca_modelo: editForm.marca_modelo.toUpperCase(),
-      ano: editForm.ano,
-      ano_modelo: editForm.ano_modelo || editForm.ano,
-      cor: editForm.cor.toUpperCase(),
-      renavam: editForm.renavam,
+      marca_modelo: String(editForm.marca_modelo).toUpperCase(),
+      ano: String(editForm.ano),
+      ano_modelo: String(editForm.ano_modelo || editForm.ano),
+      cor: String(editForm.cor).toUpperCase(),
+      renavam: String(editForm.renavam),
       chassi: (editForm.chassi as string)?.toUpperCase() || null,
       combustivel: (editForm.combustivel as string) || null,
       quilometragem: editForm.quilometragem === "" || editForm.quilometragem == null ? null : parseInt(String(editForm.quilometragem), 10),
       especie: (editForm.especie as string) || null,
       categoria: (editForm.categoria as string) || null,
       alienacao_fiduciaria: (editForm.alienacao_fiduciaria as string)?.trim() || null,
-      valor_aquisicao: parseFloat(String(editForm.valor_aquisicao)) || 0,
-      valor_venda: parseFloat(String(editForm.valor_venda)) || 0,
-      ipva: ipvaNum,
-      multas: multasNum,
-      licenciamento: licenciamentoNum,
-      desconto: descontoNum,
+      valor_aquisicao: Number(editForm.valor_aquisicao) || 0,
+      valor_venda: Number(editForm.valor_venda) || 0,
+      desconto: Number(editForm.desconto) || 0,
       forma_pagamento: (editForm.forma_pagamento as string) || null,
       is_consignment: editForm.is_consignment === "true",
       data_entrada_patio: editForm.data_entrada_patio || null,
@@ -287,33 +277,27 @@ export default function VeiculoDetalhe() {
     }).eq("id", id);
     if (error) { toast.error(translateError(error)); return; }
 
-    // Sincroniza transações de despesa por categoria (edita/cria/apaga conforme o valor)
+    // Sync do bloco de deduções (único ponto de gerenciamento de despesas do veículo)
     try {
-      await Promise.all([
-        syncDespesaCategoria({ veiculoId: id, categoria: "IPVA", descricaoBase: `IPVA - ${placaUpper}`, novoValor: ipvaNum, centroId, dataVencimento: dataVenc, userId: user?.id }),
-        syncDespesaCategoria({ veiculoId: id, categoria: "Multas", descricaoBase: `Multas - ${placaUpper}`, novoValor: multasNum, centroId, dataVencimento: dataVenc, userId: user?.id }),
-        syncDespesaCategoria({ veiculoId: id, categoria: "Licenciamento", descricaoBase: `Licenciamento - ${placaUpper}`, novoValor: licenciamentoNum, centroId, dataVencimento: dataVenc, userId: user?.id }),
-        syncDespesaCategoria({ veiculoId: id, categoria: "Despesa de Veículo", descricaoBase: `Débitos de Veículo - ${placaUpper}`, novoValor: debitosGeraisNum, centroId, dataVencimento: dataVenc, userId: user?.id }),
-      ]);
-
-      // Sync das deduções personalizadas (categoria "Dedução")
+      const CATS_DEDUCAO = ["Dedução", "IPVA", "Multas", "Licenciamento", "Despesa de Veículo"];
       const txIdsAtuais = new Set(editDeducoes.filter(d => d.txId).map(d => d.txId as string));
-      const txIdsOriginais = transacoes.filter(t => t.categoria === "Dedução" && t.tipo === "Despesa").map(t => t.id);
+      const txIdsOriginais = transacoes
+        .filter(t => t.categoria != null && CATS_DEDUCAO.includes(t.categoria) && t.tipo === "Despesa")
+        .map(t => t.id);
       const removidas = txIdsOriginais.filter(txId => !txIdsAtuais.has(txId));
       if (removidas.length > 0) {
         await supabase.from("transacoes").delete().in("id", removidas);
       }
       for (const d of editDeducoes) {
-        const v = parseFloat(d.valor) || 0;
+        const v = d.valor || 0;
         const desc = d.descricao.trim();
         if (!desc || v <= 0) {
-          // Se linha ficou inválida (vazia) e tinha txId, remove
           if (d.txId) await supabase.from("transacoes").delete().eq("id", d.txId);
           continue;
         }
         const descFinal = `${desc} - ${placaUpper}`;
         if (d.txId) {
-          await supabase.from("transacoes").update({ descricao: descFinal, valor: v }).eq("id", d.txId);
+          await supabase.from("transacoes").update({ descricao: descFinal, valor: v, categoria: "Dedução" }).eq("id", d.txId);
         } else {
           await supabase.from("transacoes").insert({
             descricao: descFinal,
@@ -329,11 +313,11 @@ export default function VeiculoDetalhe() {
         }
       }
     } catch (err) {
-      console.error("sync despesas:", err);
-      toast.error("Veículo atualizado, mas houve erro ao sincronizar despesas. Verifique a lista de transações.");
+      console.error("sync deduções:", err);
+      toast.error("Veículo atualizado, mas houve erro ao sincronizar deduções.");
     }
 
-    toast.success("Veículo atualizado e despesas sincronizadas!");
+    toast.success("Veículo atualizado!");
     setShowEdit(false);
     loadAll();
   }
@@ -672,140 +656,176 @@ export default function VeiculoDetalhe() {
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Editar Veículo</DialogTitle></DialogHeader>
             <form onSubmit={handleSaveEdit} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label>Placa</Label><Input value={editForm.placa} onChange={(e) => setEditForm({ ...editForm, placa: e.target.value.toUpperCase() })} required className="uppercase" /></div>
-                <div><Label>Marca/Modelo</Label><Input value={editForm.marca_modelo} onChange={(e) => setEditForm({ ...editForm, marca_modelo: e.target.value.toUpperCase() })} required className="uppercase" /></div>
-                <div><Label>Ano Fabricação</Label><Input value={editForm.ano} onChange={(e) => setEditForm({ ...editForm, ano: e.target.value })} required /></div>
-                <div><Label>Ano Modelo</Label><Input value={editForm.ano_modelo} onChange={(e) => setEditForm({ ...editForm, ano_modelo: e.target.value })} /></div>
-                <div><Label>Cor</Label><Input value={editForm.cor} onChange={(e) => setEditForm({ ...editForm, cor: e.target.value.toUpperCase() })} className="uppercase" /></div>
-                <div><Label>Renavam</Label><Input value={editForm.renavam} onChange={(e) => setEditForm({ ...editForm, renavam: e.target.value })} /></div>
-                <div><Label>Chassi</Label><Input value={editForm.chassi as string} onChange={(e) => setEditForm({ ...editForm, chassi: e.target.value.toUpperCase() })} className="uppercase" /></div>
-                <div><Label>Quilometragem (KM)</Label><Input type="number" min="0" value={editForm.quilometragem as string | number} onChange={(e) => setEditForm({ ...editForm, quilometragem: e.target.value })} /></div>
-                <div>
-                  <Label>Espécie/Tipo</Label>
-                  <Select value={editForm.especie as string} onValueChange={(v) => setEditForm({ ...editForm, especie: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Automóvel">Automóvel</SelectItem>
-                      <SelectItem value="Motocicleta">Motocicleta</SelectItem>
-                      <SelectItem value="Caminhonete">Caminhonete</SelectItem>
-                      <SelectItem value="Caminhão">Caminhão</SelectItem>
-                      <SelectItem value="Utilitário">Utilitário</SelectItem>
-                      <SelectItem value="Ônibus">Ônibus</SelectItem>
-                      <SelectItem value="Outro">Outro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Categoria</Label>
-                  <Select value={editForm.categoria as string} onValueChange={(v) => setEditForm({ ...editForm, categoria: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Particular">Particular</SelectItem>
-                      <SelectItem value="Aluguel">Aluguel</SelectItem>
-                      <SelectItem value="Comercial">Comercial</SelectItem>
-                      <SelectItem value="Oficial">Oficial</SelectItem>
-                      <SelectItem value="Diplomática">Diplomática</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div><Label>Alienação Fiduciária</Label><Input value={editForm.alienacao_fiduciaria as string} onChange={(e) => setEditForm({ ...editForm, alienacao_fiduciaria: e.target.value })} placeholder="Ex: Sem, Banco XYZ" /></div>
-                <div>
-                  <Label>Combustível</Label>
-                  <Select value={editForm.combustivel} onValueChange={(v) => setEditForm({ ...editForm, combustivel: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="FLEX">Flex</SelectItem>
-                      <SelectItem value="GASOLINA">Gasolina</SelectItem>
-                      <SelectItem value="ETANOL">Etanol</SelectItem>
-                      <SelectItem value="DIESEL">Diesel</SelectItem>
-                      <SelectItem value="GNV">GNV</SelectItem>
-                      <SelectItem value="ELÉTRICO">Elétrico</SelectItem>
-                      <SelectItem value="HÍBRIDO">Híbrido</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div><Label>Valor Aquisição</Label><Input type="number" step="0.01" value={editForm.valor_aquisicao} onChange={(e) => setEditForm({ ...editForm, valor_aquisicao: e.target.value })} required /></div>
-                <div><Label>Valor Venda</Label><Input type="number" step="0.01" value={editForm.valor_venda} onChange={(e) => setEditForm({ ...editForm, valor_venda: e.target.value })} /></div>
-                <div><Label>Desconto (R$)</Label><Input type="number" step="0.01" value={editForm.desconto as string | number} onChange={(e) => setEditForm({ ...editForm, desconto: e.target.value })} /></div>
-                <div><Label>Débitos Gerais (R$)</Label><Input type="number" step="0.01" value={editForm.debitos_gerais as string | number} onChange={(e) => setEditForm({ ...editForm, debitos_gerais: e.target.value })} /></div>
-                <div><Label>IPVA (R$)</Label><Input type="number" step="0.01" value={editForm.ipva as string | number} onChange={(e) => setEditForm({ ...editForm, ipva: e.target.value })} /></div>
-                <div><Label>Multas (R$)</Label><Input type="number" step="0.01" value={editForm.multas as string | number} onChange={(e) => setEditForm({ ...editForm, multas: e.target.value })} /></div>
-                <div><Label>Licenciamento (R$)</Label><Input type="number" step="0.01" value={editForm.licenciamento as string | number} onChange={(e) => setEditForm({ ...editForm, licenciamento: e.target.value })} /></div>
-                <div>
-                  <Label>Forma de Pagamento</Label>
-                  <Select value={editForm.forma_pagamento as string} onValueChange={(v) => setEditForm({ ...editForm, forma_pagamento: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PIX">PIX</SelectItem>
-                      <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                      <SelectItem value="Transferência">Transferência</SelectItem>
-                      <SelectItem value="Cartão Débito">Cartão Débito</SelectItem>
-                      <SelectItem value="Cartão Crédito">Cartão Crédito</SelectItem>
-                      <SelectItem value="Cheque">Cheque</SelectItem>
-                      <SelectItem value="Financiamento Banco">Financiamento Banco</SelectItem>
-                      <SelectItem value="Veículo na Troca">Veículo na Troca</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div><Label>Data Entrada Pátio</Label><Input type="date" value={editForm.data_entrada_patio} onChange={(e) => setEditForm({ ...editForm, data_entrada_patio: e.target.value })} /></div>
-              </div>
+              <Accordion type="multiple" defaultValue={["identificacao", "financeiro"]} className="space-y-2">
 
-              <div className="flex items-center gap-2 border-t pt-3">
-                <Switch checked={editForm.is_consignment === "true"} onCheckedChange={(v) => setEditForm({ ...editForm, is_consignment: v ? "true" : "false" })} />
-                <Label>Veículo Consignado</Label>
-              </div>
-
-              <div className="rounded-md bg-blue-500/10 border border-blue-500/30 p-2 text-[11px] text-blue-800">
-                ℹ️ Ao editar <strong>IPVA / Multas / Licenciamento / Débitos Gerais / Outras Deduções</strong>: a despesa financeira correspondente é <strong>atualizada</strong> (se o valor mudou), <strong>criada</strong> (se não existia) ou <strong>apagada</strong> (se você deixar 0 ou remover a linha). Sem duplicidade.
-              </div>
-
-              {/* Bloco de Outras Deduções editável */}
-              <div className="border rounded-lg p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold text-sm">Outras Deduções</h4>
-                    <p className="text-[11px] text-muted-foreground">Cada linha é uma despesa vinculada ao veículo. Edite, remova ou adicione.</p>
-                  </div>
-                  <Button type="button" size="sm" variant="outline" onClick={() => setEditDeducoes(d => [...d, { id: crypto.randomUUID(), txId: null, descricao: "", valor: "" }])} className="gap-1">
-                    <Plus className="h-3 w-3" /> Adicionar
-                  </Button>
-                </div>
-                {editDeducoes.length === 0 && (
-                  <p className="text-xs text-muted-foreground italic py-1">Nenhuma dedução personalizada.</p>
-                )}
-                {editDeducoes.map((d) => (
-                  <div key={d.id} className="grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-7">
-                      <Label className="text-xs">Descrição</Label>
-                      <Input className="h-8 text-sm" value={d.descricao} onChange={(e) => setEditDeducoes(list => list.map(x => x.id === d.id ? { ...x, descricao: e.target.value } : x))} />
+                {/* Identificação */}
+                <AccordionItem value="identificacao" className="border rounded-lg px-3">
+                  <AccordionTrigger className="text-sm font-semibold hover:no-underline">🚗 Identificação</AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <div><Label>Placa *</Label><Input value={editForm.placa as string} onChange={(e) => setEditForm({ ...editForm, placa: e.target.value.toUpperCase() })} required className="uppercase" /></div>
+                      <div><Label>Marca/Modelo *</Label><Input value={editForm.marca_modelo as string} onChange={(e) => setEditForm({ ...editForm, marca_modelo: e.target.value.toUpperCase() })} required className="uppercase" /></div>
+                      <div><Label>Ano Fabricação *</Label><Input value={editForm.ano as string} onChange={(e) => setEditForm({ ...editForm, ano: e.target.value })} required inputMode="numeric" maxLength={4} /></div>
+                      <div><Label>Ano Modelo</Label><Input value={editForm.ano_modelo as string} onChange={(e) => setEditForm({ ...editForm, ano_modelo: e.target.value })} inputMode="numeric" maxLength={4} /></div>
+                      <div><Label>Cor</Label><Input value={editForm.cor as string} onChange={(e) => setEditForm({ ...editForm, cor: e.target.value.toUpperCase() })} className="uppercase" /></div>
+                      <div>
+                        <Label>Combustível</Label>
+                        <Select value={editForm.combustivel as string} onValueChange={(v) => setEditForm({ ...editForm, combustivel: v })}>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="FLEX">Flex</SelectItem>
+                            <SelectItem value="GASOLINA">Gasolina</SelectItem>
+                            <SelectItem value="ETANOL">Etanol</SelectItem>
+                            <SelectItem value="DIESEL">Diesel</SelectItem>
+                            <SelectItem value="GNV">GNV</SelectItem>
+                            <SelectItem value="ELÉTRICO">Elétrico</SelectItem>
+                            <SelectItem value="HÍBRIDO">Híbrido</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div className="col-span-4">
-                      <Label className="text-xs">Valor (R$)</Label>
-                      <Input className="h-8 text-sm" type="number" step="0.01" value={d.valor} onChange={(e) => setEditDeducoes(list => list.map(x => x.id === d.id ? { ...x, valor: e.target.value } : x))} />
-                    </div>
-                    <div className="col-span-1 flex justify-center">
-                      <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setEditDeducoes(list => list.filter(x => x.id !== d.id))}>
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  </AccordionContent>
+                </AccordionItem>
 
-              <div>
-                <Label>Centro de Custo</Label>
-                <Select value={editForm.centro_custo_id} onValueChange={(v) => setEditForm({ ...editForm, centro_custo_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {centros.filter(c => role === "admin" || c.nome !== "Casa").map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <ClienteSelector label="Comprado de (Cliente)" value={editForm.cliente_compra_id} onChange={(v) => setEditForm({ ...editForm, cliente_compra_id: v })} />
-              <ClienteSelector label="Vendido para (Cliente)" value={editForm.cliente_venda_id} onChange={(v) => setEditForm({ ...editForm, cliente_venda_id: v })} />
+                {/* Documentação */}
+                <AccordionItem value="documentacao" className="border rounded-lg px-3">
+                  <AccordionTrigger className="text-sm font-semibold hover:no-underline">📄 Documentação</AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <div><Label>Renavam</Label><Input value={editForm.renavam as string} onChange={(e) => setEditForm({ ...editForm, renavam: e.target.value })} inputMode="numeric" /></div>
+                      <div><Label>Chassi</Label><Input value={editForm.chassi as string} onChange={(e) => setEditForm({ ...editForm, chassi: e.target.value.toUpperCase() })} className="uppercase" /></div>
+                      <div><Label>Quilometragem (KM)</Label><Input type="number" min="0" value={editForm.quilometragem as string | number} onChange={(e) => setEditForm({ ...editForm, quilometragem: e.target.value })} inputMode="numeric" /></div>
+                      <div>
+                        <Label>Espécie/Tipo</Label>
+                        <Select value={editForm.especie as string} onValueChange={(v) => setEditForm({ ...editForm, especie: v })}>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Automóvel">Automóvel</SelectItem>
+                            <SelectItem value="Motocicleta">Motocicleta</SelectItem>
+                            <SelectItem value="Caminhonete">Caminhonete</SelectItem>
+                            <SelectItem value="Caminhão">Caminhão</SelectItem>
+                            <SelectItem value="Utilitário">Utilitário</SelectItem>
+                            <SelectItem value="Ônibus">Ônibus</SelectItem>
+                            <SelectItem value="Outro">Outro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Categoria</Label>
+                        <Select value={editForm.categoria as string} onValueChange={(v) => setEditForm({ ...editForm, categoria: v })}>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Particular">Particular</SelectItem>
+                            <SelectItem value="Aluguel">Aluguel</SelectItem>
+                            <SelectItem value="Comercial">Comercial</SelectItem>
+                            <SelectItem value="Oficial">Oficial</SelectItem>
+                            <SelectItem value="Diplomática">Diplomática</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div><Label>Alienação Fiduciária</Label><Input value={editForm.alienacao_fiduciaria as string} onChange={(e) => setEditForm({ ...editForm, alienacao_fiduciaria: e.target.value })} placeholder="Ex: Sem, Banco XYZ" /></div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Financeiro */}
+                <AccordionItem value="financeiro" className="border rounded-lg px-3">
+                  <AccordionTrigger className="text-sm font-semibold hover:no-underline">💰 Financeiro</AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <div><Label>Valor de Aquisição *</Label><CurrencyInput value={editForm.valor_aquisicao as number} onChange={(v) => setEditForm({ ...editForm, valor_aquisicao: v })} /></div>
+                      <div><Label>Valor de Venda</Label><CurrencyInput value={editForm.valor_venda as number} onChange={(v) => setEditForm({ ...editForm, valor_venda: v })} /></div>
+                      <div><Label>Desconto</Label><CurrencyInput value={editForm.desconto as number} onChange={(v) => setEditForm({ ...editForm, desconto: v })} /></div>
+                      <div>
+                        <Label>Forma de Pagamento</Label>
+                        <Select value={editForm.forma_pagamento as string} onValueChange={(v) => setEditForm({ ...editForm, forma_pagamento: v })}>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PIX">PIX</SelectItem>
+                            <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                            <SelectItem value="Transferência">Transferência</SelectItem>
+                            <SelectItem value="Cartão Débito">Cartão Débito</SelectItem>
+                            <SelectItem value="Cartão Crédito">Cartão Crédito</SelectItem>
+                            <SelectItem value="Cheque">Cheque</SelectItem>
+                            <SelectItem value="Financiamento Banco">Financiamento Banco</SelectItem>
+                            <SelectItem value="Veículo na Troca">Veículo na Troca</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Deduções */}
+                <AccordionItem value="deducoes" className="border rounded-lg px-3">
+                  <AccordionTrigger className="text-sm font-semibold hover:no-underline">
+                    📉 Deduções {editDeducoes.length > 0 && <span className="ml-2 text-xs font-normal text-muted-foreground">({editDeducoes.length} · R$ {editDeducoes.reduce((s, d) => s + (d.valor || 0), 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })})</span>}
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-3 pt-2">
+                      <p className="text-[11px] text-muted-foreground">Editar aqui atualiza/cria/apaga a despesa financeira correspondente. Sem duplicidade.</p>
+                      <div className="flex flex-wrap gap-1">
+                        {["IPVA", "Multas", "Licenciamento", "Saldo de Quitação", "Comissão", "Repasse a Terceiro", "Frete/Transporte"].map(sug => (
+                          <Button key={sug} type="button" size="sm" variant="secondary" className="h-6 text-[11px]" onClick={() => setEditDeducoes(d => [...d, { id: crypto.randomUUID(), txId: null, descricao: sug, valor: 0 }])}>
+                            + {sug}
+                          </Button>
+                        ))}
+                        <Button type="button" size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => setEditDeducoes(d => [...d, { id: crypto.randomUUID(), txId: null, descricao: "", valor: 0 }])}>
+                          <Plus className="h-3 w-3 mr-1" /> Outra
+                        </Button>
+                      </div>
+                      {editDeducoes.length === 0 && <p className="text-xs text-muted-foreground italic">Nenhuma dedução.</p>}
+                      {editDeducoes.map((d) => (
+                        <div key={d.id} className="grid grid-cols-12 gap-2 items-end">
+                          <div className="col-span-7">
+                            <Label className="text-xs">Descrição</Label>
+                            <Input className="h-8 text-sm" value={d.descricao} onChange={(e) => setEditDeducoes(list => list.map(x => x.id === d.id ? { ...x, descricao: e.target.value } : x))} />
+                          </div>
+                          <div className="col-span-4">
+                            <Label className="text-xs">Valor</Label>
+                            <CurrencyInput className="h-8 text-sm" value={d.valor} onChange={(v) => setEditDeducoes(list => list.map(x => x.id === d.id ? { ...x, valor: v } : x))} />
+                          </div>
+                          <div className="col-span-1 flex justify-center">
+                            <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setEditDeducoes(list => list.filter(x => x.id !== d.id))}>
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Origem */}
+                <AccordionItem value="origem" className="border rounded-lg px-3">
+                  <AccordionTrigger className="text-sm font-semibold hover:no-underline">🏢 Origem</AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center gap-2">
+                        <Switch checked={editForm.is_consignment === "true"} onCheckedChange={(v) => setEditForm({ ...editForm, is_consignment: v ? "true" : "false" })} />
+                        <Label>Veículo Consignado</Label>
+                      </div>
+                      <ClienteSelector label="Comprado de (Cliente)" value={editForm.cliente_compra_id as string | null} onChange={(v) => setEditForm({ ...editForm, cliente_compra_id: v })} />
+                      <ClienteSelector label="Vendido para (Cliente)" value={editForm.cliente_venda_id as string | null} onChange={(v) => setEditForm({ ...editForm, cliente_venda_id: v })} />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label>Centro de Custo</Label>
+                          <Select value={editForm.centro_custo_id as string} onValueChange={(v) => setEditForm({ ...editForm, centro_custo_id: v })}>
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {centros.filter(c => role === "admin" || c.nome !== "Casa").map((c) => (
+                                <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div><Label>Data Entrada Pátio</Label><Input type="date" value={editForm.data_entrada_patio as string} onChange={(e) => setEditForm({ ...editForm, data_entrada_patio: e.target.value })} /></div>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+
               <Button type="submit" className="w-full">Salvar Alterações</Button>
             </form>
           </DialogContent>
