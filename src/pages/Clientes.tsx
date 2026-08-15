@@ -51,14 +51,14 @@ export default function Clientes() {
     setShowAdd(true);
   }
 
-  async function handleCepBlur() {
-    const clean = normalizeCep(form.cep);
+  async function buscaEAtualiza(cepRaw: string) {
+    const clean = normalizeCep(cepRaw);
     if (clean.length !== 8) return;
     setBuscandoCep(true);
     const endereco = await buscarCep(clean);
     setBuscandoCep(false);
     if (!endereco) {
-      toast.error("CEP não encontrado.");
+      toast.error("CEP não encontrado ou API indisponível.");
       return;
     }
     setForm(f => ({
@@ -67,9 +67,17 @@ export default function Clientes() {
       bairro: endereco.bairro || f.bairro,
       cidade: endereco.cidade || f.cidade,
       uf: endereco.uf || f.uf,
-      // Se endereco ainda está vazio, sugere logradouro do ViaCEP
       endereco: f.endereco?.trim() ? f.endereco : endereco.logradouro,
     }));
+    toast.success("Endereço preenchido pelo CEP.");
+  }
+
+  function handleCepChange(value: string) {
+    setForm(f => ({ ...f, cep: value }));
+    // Auto-busca assim que tiver 8 dígitos (independente de formatação)
+    if (normalizeCep(value).length === 8) {
+      buscaEAtualiza(value);
+    }
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -148,10 +156,11 @@ export default function Clientes() {
           <Label>CEP {buscandoCep && <Loader2 className="inline h-3 w-3 animate-spin ml-1" />}</Label>
           <Input
             value={form.cep}
-            onChange={(e) => setForm({ ...form, cep: e.target.value })}
-            onBlur={handleCepBlur}
+            onChange={(e) => handleCepChange(e.target.value)}
+            onBlur={() => buscaEAtualiza(form.cep)}
             placeholder="00000-000"
             maxLength={9}
+            inputMode="numeric"
           />
         </div>
         <div className="col-span-3"><Label>Bairro</Label><Input value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} /></div>
