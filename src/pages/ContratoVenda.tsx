@@ -8,14 +8,16 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatBRL, parseDateLocal } from "@/lib/format";
 import { EMPRESA } from "@/lib/empresa";
+import { fetchPixEmpresa } from "@/lib/pix";
 import logoTratoFeito from "@/assets/logo-trato-feito.png";
-import type { Veiculo, Cliente, Transacao } from "@/lib/db-types";
+import type { Veiculo, Cliente, Transacao, ChavePix } from "@/lib/db-types";
 
 export default function ContratoVenda() {
   const { id } = useParams<{ id: string }>();
   const [veiculo, setVeiculo] = useState<Veiculo | null>(null);
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [pagamentos, setPagamentos] = useState<Transacao[]>([]);
+  const [pixEmpresa, setPixEmpresa] = useState<ChavePix | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,6 +36,7 @@ export default function ContratoVenda() {
         .eq("tipo", "Receita")
         .order("data_vencimento");
       setPagamentos(txs ?? []);
+      setPixEmpresa(await fetchPixEmpresa());
       setLoading(false);
     })();
   }, [id]);
@@ -108,6 +111,8 @@ export default function ContratoVenda() {
             <div className="col-span-2"><span className="font-semibold">Chassi:</span> {veiculo.chassi ?? "_______________________________"}</div>
             <div><span className="font-semibold">Cor:</span> {veiculo.cor ?? "_______________"}</div>
             <div><span className="font-semibold">Combustível:</span> {veiculo.combustivel ?? "_______________"}</div>
+            <div><span className="font-semibold">KM:</span> {veiculo.quilometragem != null ? `${veiculo.quilometragem.toLocaleString("pt-BR")}` : "_______________"}</div>
+            <div><span className="font-semibold">Espécie:</span> {veiculo.especie ?? "_______________"}</div>
           </div>
         </section>
 
@@ -143,7 +148,7 @@ export default function ContratoVenda() {
             </tbody>
           </table>
 
-          <p className="mb-2">3.2. O pagamento poderá ser realizado mediante <strong>PIX</strong>, em conta de titularidade da VENDEDORA, <strong>CHAVE: _______________________________</strong>, sendo obrigatória a apresentação do respectivo comprovante pelo(a) COMPRADOR(A).</p>
+          <p className="mb-2">3.2. O pagamento poderá ser realizado mediante <strong>PIX</strong>, em conta de titularidade da VENDEDORA, <strong>CHAVE ({pixEmpresa?.tipo ?? "____"}): {pixEmpresa?.chave ?? "_______________________________"}</strong>, sendo obrigatória a apresentação do respectivo comprovante pelo(a) COMPRADOR(A).</p>
           <p className="mb-2">3.3. É vedada a realização de pagamentos diretamente a colaboradores, prepostos ou terceiros não indicados formalmente pela VENDEDORA, sob pena de o valor não ser reconhecido como quitação da obrigação.</p>
         </section>
 

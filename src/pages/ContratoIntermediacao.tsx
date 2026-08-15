@@ -7,13 +7,15 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import logo from "@/assets/logo-trato-feito.png";
 import { EMPRESA } from "@/lib/empresa";
-import type { Veiculo, Cliente } from "@/lib/db-types";
+import { fetchPixEmpresa } from "@/lib/pix";
+import type { Veiculo, Cliente, ChavePix } from "@/lib/db-types";
 
 export default function ContratoIntermediacao() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [veiculo, setVeiculo] = useState<Veiculo | null>(null);
   const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [pixEmpresa, setPixEmpresa] = useState<ChavePix | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,6 +27,7 @@ export default function ContratoIntermediacao() {
         const { data: c } = await supabase.from("clientes").select("*").eq("id", v.cliente_compra_id).single();
         setCliente(c);
       }
+      setPixEmpresa(await fetchPixEmpresa());
       setLoading(false);
     })();
   }, [id]);
@@ -41,8 +44,10 @@ export default function ContratoIntermediacao() {
   const endereco = cliente?.endereco ?? "___________________________________________________";
   const telefone = cliente?.telefone ?? "___________________";
   const email = cliente?.email ?? "___________________";
-  const cidade = "BRASÍLIA";
-  const estado = "DF";
+  const cidade = (cliente?.cidade ?? EMPRESA.cidade).toUpperCase();
+  const estado = (cliente?.uf ?? EMPRESA.uf).toUpperCase();
+  const bairro = cliente?.bairro ?? "_______________";
+  const cep = cliente?.cep ?? "_______________";
 
   return (
     <div className="bg-white min-h-screen text-black printable-area">
@@ -74,11 +79,11 @@ export default function ContratoIntermediacao() {
               <tr>
                 <td className="border border-black p-1"><strong>Cidade:</strong> {cidade}</td>
                 <td className="border border-black p-1"><strong>Estado:</strong> {estado}</td>
-                <td className="border border-black p-1"><strong>CEP:</strong> _______________</td>
+                <td className="border border-black p-1"><strong>CEP:</strong> {cep}</td>
               </tr>
               <tr>
                 <td className="border border-black p-1" colSpan={2}><strong>Endereço:</strong> {endereco}</td>
-                <td className="border border-black p-1"><strong>Bairro:</strong> _______________</td>
+                <td className="border border-black p-1"><strong>Bairro:</strong> {bairro}</td>
               </tr>
               <tr>
                 <td className="border border-black p-1" colSpan={2}><strong>CPF ou CNPJ:</strong> {cpfCnpj}</td>
@@ -141,15 +146,15 @@ export default function ContratoIntermediacao() {
               <tr><td className="border border-black p-1"><strong>CPF/CNPJ:</strong> {cpfCnpj}</td></tr>
               <tr><td className="border border-black p-1"><strong>PLACA:</strong> {veiculo.placa}</td></tr>
               <tr><td className="border border-black p-1"><strong>CHASSI:</strong> {veiculo.chassi ?? "_______________"}</td></tr>
-              <tr><td className="border border-black p-1"><strong>ESPÉCIE/TIPO:</strong> _______________</td></tr>
+              <tr><td className="border border-black p-1"><strong>ESPÉCIE/TIPO:</strong> {veiculo.especie ?? "_______________"}</td></tr>
               <tr><td className="border border-black p-1"><strong>MARCA/MODELO:</strong> {veiculo.marca_modelo}</td></tr>
               <tr><td className="border border-black p-1"><strong>ANO/MODELO:</strong> {anoDisplay}</td></tr>
-              <tr><td className="border border-black p-1"><strong>KM:</strong> _______________</td></tr>
-              <tr><td className="border border-black p-1"><strong>CATEGORIA:</strong> _______________</td></tr>
+              <tr><td className="border border-black p-1"><strong>KM:</strong> {veiculo.quilometragem != null ? veiculo.quilometragem.toLocaleString("pt-BR") : "_______________"}</td></tr>
+              <tr><td className="border border-black p-1"><strong>CATEGORIA:</strong> {veiculo.categoria ?? "_______________"}</td></tr>
               <tr><td className="border border-black p-1"><strong>COR PREDOMINANTE:</strong> {veiculo.cor ?? "_______________"}</td></tr>
               <tr><td className="border border-black p-1"><strong>COMBUSTÍVEL:</strong> {veiculo.combustivel ?? "_______________"}</td></tr>
-              <tr><td className="border border-black p-1"><strong>ALIENAÇÃO FIDUCIÁRIA:</strong> _______________</td></tr>
-              <tr><td className="border border-black p-1"><strong>SITUAÇÃO:</strong> _______________</td></tr>
+              <tr><td className="border border-black p-1"><strong>ALIENAÇÃO FIDUCIÁRIA:</strong> {veiculo.alienacao_fiduciaria ?? "_______________"}</td></tr>
+              <tr><td className="border border-black p-1"><strong>SITUAÇÃO:</strong> {veiculo.status}</td></tr>
               <tr><td className="border border-black p-1"><strong>CIDADE/UF:</strong> BRASÍLIA/DF</td></tr>
             </tbody>
           </table>
@@ -181,14 +186,12 @@ export default function ContratoIntermediacao() {
 
           <table className="w-full border-collapse border border-black text-[10px] my-2">
             <tbody>
-              <tr><td className="border border-black p-1 font-bold" colSpan={2}>DADOS BANCÁRIOS</td></tr>
-              <tr><td className="border border-black p-1 w-40">BENEFICIÁRIO(A):</td><td className="border border-black p-1"></td></tr>
-              <tr><td className="border border-black p-1">CPF/CNPJ:</td><td className="border border-black p-1"></td></tr>
-              <tr><td className="border border-black p-1">BANCO:</td><td className="border border-black p-1"></td></tr>
-              <tr><td className="border border-black p-1">AGÊNCIA:</td><td className="border border-black p-1"></td></tr>
-              <tr><td className="border border-black p-1">CONTA: PIX</td><td className="border border-black p-1"></td></tr>
-              <tr><td className="border border-black p-1">C/C OU C/PO:</td><td className="border border-black p-1"></td></tr>
-              <tr><td className="border border-black p-1">OBSERVAÇÃO:</td><td className="border border-black p-1"></td></tr>
+              <tr><td className="border border-black p-1 font-bold" colSpan={2}>DADOS PARA PAGAMENTO (PIX)</td></tr>
+              <tr><td className="border border-black p-1 w-40">BENEFICIÁRIO(A):</td><td className="border border-black p-1">{cliente?.nome ?? ""}</td></tr>
+              <tr><td className="border border-black p-1">CPF/CNPJ:</td><td className="border border-black p-1">{cliente?.cpf_cnpj ?? ""}</td></tr>
+              <tr><td className="border border-black p-1">TIPO DA CHAVE PIX:</td><td className="border border-black p-1">{cliente?.chave_pix_tipo ?? ""}</td></tr>
+              <tr><td className="border border-black p-1">CHAVE PIX:</td><td className="border border-black p-1">{cliente?.chave_pix ?? ""}</td></tr>
+              <tr><td className="border border-black p-1">OBSERVAÇÃO:</td><td className="border border-black p-1">Pagamento realizado exclusivamente via PIX.</td></tr>
               <tr><td className="border border-black p-1 font-bold">VALOR TOTAL:</td><td className="border border-black p-1">R$</td></tr>
             </tbody>
           </table>

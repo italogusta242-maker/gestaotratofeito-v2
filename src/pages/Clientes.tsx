@@ -7,11 +7,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Loader2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import type { Cliente } from "@/lib/db-types";
 import { translateError } from "@/lib/supabase-errors";
+import { buscarCep, formatCep, normalizeCep } from "@/lib/cep";
 
 export default function Clientes() {
   const { role } = useAuth();
@@ -21,8 +23,9 @@ export default function Clientes() {
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
   const [deleting, setDeleting] = useState<Cliente | null>(null);
-  const [form, setForm] = useState({ nome: "", cpf_cnpj: "", email: "", telefone: "", endereco: "", rg: "", estado_civil: "", nacionalidade: "", data_nascimento: "" });
+  const [form, setForm] = useState({ nome: "", cpf_cnpj: "", email: "", telefone: "", endereco: "", rg: "", estado_civil: "", nacionalidade: "", data_nascimento: "", cep: "", bairro: "", cidade: "", uf: "", chave_pix: "", chave_pix_tipo: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [buscandoCep, setBuscandoCep] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.from("clientes").select("*").order("nome");
@@ -33,13 +36,40 @@ export default function Clientes() {
   useEffect(() => { load(); }, [load]);
 
   function openEdit(c: Cliente) {
-    setForm({ nome: c.nome, cpf_cnpj: c.cpf_cnpj, email: c.email ?? "", telefone: c.telefone ?? "", endereco: c.endereco ?? "", rg: c.rg ?? "", estado_civil: c.estado_civil ?? "", nacionalidade: c.nacionalidade ?? "", data_nascimento: c.data_nascimento ?? "" });
+    setForm({
+      nome: c.nome, cpf_cnpj: c.cpf_cnpj, email: c.email ?? "", telefone: c.telefone ?? "",
+      endereco: c.endereco ?? "", rg: c.rg ?? "", estado_civil: c.estado_civil ?? "",
+      nacionalidade: c.nacionalidade ?? "", data_nascimento: c.data_nascimento ?? "",
+      cep: c.cep ?? "", bairro: c.bairro ?? "", cidade: c.cidade ?? "", uf: c.uf ?? "",
+      chave_pix: c.chave_pix ?? "", chave_pix_tipo: c.chave_pix_tipo ?? "",
+    });
     setEditing(c);
   }
 
   function openAdd() {
-    setForm({ nome: "", cpf_cnpj: "", email: "", telefone: "", endereco: "", rg: "", estado_civil: "", nacionalidade: "", data_nascimento: "" });
+    setForm({ nome: "", cpf_cnpj: "", email: "", telefone: "", endereco: "", rg: "", estado_civil: "", nacionalidade: "", data_nascimento: "", cep: "", bairro: "", cidade: "", uf: "", chave_pix: "", chave_pix_tipo: "" });
     setShowAdd(true);
+  }
+
+  async function handleCepBlur() {
+    const clean = normalizeCep(form.cep);
+    if (clean.length !== 8) return;
+    setBuscandoCep(true);
+    const endereco = await buscarCep(clean);
+    setBuscandoCep(false);
+    if (!endereco) {
+      toast.error("CEP não encontrado.");
+      return;
+    }
+    setForm(f => ({
+      ...f,
+      cep: formatCep(clean),
+      bairro: endereco.bairro || f.bairro,
+      cidade: endereco.cidade || f.cidade,
+      uf: endereco.uf || f.uf,
+      // Se endereco ainda está vazio, sugere logradouro do ViaCEP
+      endereco: f.endereco?.trim() ? f.endereco : endereco.logradouro,
+    }));
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -63,6 +93,12 @@ export default function Clientes() {
       estado_civil: form.estado_civil.trim() || null,
       nacionalidade: form.nacionalidade.trim() || null,
       data_nascimento: dataNasc || null,
+      cep: form.cep.trim() || null,
+      bairro: form.bairro.trim() || null,
+      cidade: form.cidade.trim() || null,
+      uf: form.uf.trim().toUpperCase() || null,
+      chave_pix: form.chave_pix.trim() || null,
+      chave_pix_tipo: form.chave_pix_tipo || null,
     };
     setSubmitting(true);
     if (editing) {
@@ -107,8 +143,52 @@ export default function Clientes() {
         <div><Label>E-mail</Label><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
         <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} /></div>
       </div>
-      <div><Label>Endereço Completo</Label><Input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} placeholder="Rua, Número, Bairro, CEP..." /></div>
-      <Button type="submit" className="w-full">Salvar</Button>
+      <div className="grid grid-cols-6 gap-3">
+        <div className="col-span-2">
+          <Label>CEP {buscandoCep && <Loader2 className="inline h-3 w-3 animate-spin ml-1" />}</Label>
+          <Input
+            value={form.cep}
+            onChange={(e) => setForm({ ...form, cep: e.target.value })}
+            onBlur={handleCepBlur}
+            placeholder="00000-000"
+            maxLength={9}
+          />
+        </div>
+        <div className="col-span-3"><Label>Bairro</Label><Input value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} /></div>
+        <div className="col-span-1"><Label>UF</Label><Input value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value.toUpperCase() })} maxLength={2} /></div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="col-span-2"><Label>Endereço (Rua e nº)</Label><Input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} placeholder="Rua, número, complemento" /></div>
+        <div><Label>Cidade</Label><Input value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} /></div>
+      </div>
+      <div className="border-t pt-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Chave PIX (para receber pagamentos)</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <Label>Tipo</Label>
+            <Select value={form.chave_pix_tipo || "__none__"} onValueChange={(v) => setForm({ ...form, chave_pix_tipo: v === "__none__" ? "" : v })}>
+              <SelectTrigger><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Sem chave</SelectItem>
+                <SelectItem value="CPF">CPF</SelectItem>
+                <SelectItem value="CNPJ">CNPJ</SelectItem>
+                <SelectItem value="Email">Email</SelectItem>
+                <SelectItem value="Telefone">Telefone</SelectItem>
+                <SelectItem value="Aleatória">Aleatória</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="col-span-2"><Label>Chave</Label><Input value={form.chave_pix} onChange={(e) => setForm({ ...form, chave_pix: e.target.value })} placeholder={
+            form.chave_pix_tipo === "CPF" ? "000.000.000-00" :
+            form.chave_pix_tipo === "CNPJ" ? "00.000.000/0000-00" :
+            form.chave_pix_tipo === "Email" ? "email@exemplo.com" :
+            form.chave_pix_tipo === "Telefone" ? "+55 61 90000-0000" :
+            form.chave_pix_tipo === "Aleatória" ? "chave UUID" :
+            "informe o tipo primeiro"
+          } /></div>
+        </div>
+      </div>
+      <Button type="submit" className="w-full" disabled={submitting}>{submitting ? "Salvando..." : "Salvar"}</Button>
     </form>
   );
 

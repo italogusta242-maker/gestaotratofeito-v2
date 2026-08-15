@@ -8,33 +8,43 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Building2, ArrowRightLeft } from "lucide-react";
+import { Plus, Building2, ArrowRightLeft, Key, Pencil, Trash2, Link as LinkIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { formatBRL } from "@/lib/format";
-import type { ContaBancaria, Transacao } from "@/lib/db-types";
+import type { ContaBancaria, ChavePix, Transacao } from "@/lib/db-types";
 import { translateError } from "@/lib/supabase-errors";
+
+const TIPOS_CHAVE_PIX = ["CPF", "CNPJ", "Email", "Telefone", "Aleatória"] as const;
 
 export default function ContasBancarias() {
   const [contas, setContas] = useState<ContaBancaria[]>([]);
+  const [chavesPix, setChavesPix] = useState<ChavePix[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [showTrans, setShowTrans] = useState(false);
+  const [showPix, setShowPix] = useState(false);
+  const [editingPix, setEditingPix] = useState<ChavePix | null>(null);
   const [form, setForm] = useState({ nome: "", tipo: "Corrente", saldo_inicial: "" });
+  const [pixForm, setPixForm] = useState({ tipo: "CPF", chave: "", titular: "", conta_bancaria_id: "", ativa: true });
   const [transForm, setTransForm] = useState({ origemId: "", destinoId: "", valor: "", data: new Date().toISOString().split("T")[0], descricao: "Transferência" });
   const [selectedConta, setSelectedConta] = useState<ContaBancaria | null>(null);
   const [txs, setTxs] = useState<Transacao[]>([]);
   const [allTxs, setAllTxs] = useState<Pick<Transacao, "valor" | "tipo" | "conta_bancaria_id">[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const isAdmin = role === "admin";
 
   const load = useCallback(async () => {
-    const [contasRes, txRes] = await Promise.all([
+    const [contasRes, txRes, pixRes] = await Promise.all([
       supabase.from("contas_bancarias").select("*").order("nome"),
-      supabase.from("transacoes").select("valor, tipo, conta_bancaria_id").eq("status", "Pago").not("conta_bancaria_id", "is", null)
+      supabase.from("transacoes").select("valor, tipo, conta_bancaria_id").eq("status", "Pago").not("conta_bancaria_id", "is", null),
+      supabase.from("chaves_pix").select("*").order("created_at"),
     ]);
     if (contasRes.error) { console.error("contas_bancarias:", contasRes.error); toast.error("Falha ao carregar contas bancárias"); }
     if (txRes.error) console.error("transacoes:", txRes.error);
+    if (pixRes.error) console.error("chaves_pix:", pixRes.error);
     setContas(contasRes.data ?? []);
     setAllTxs(txRes.data ?? []);
+    setChavesPix(pixRes.data ?? []);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -114,6 +124,56 @@ export default function ContasBancarias() {
     setShowTrans(false);
     setTransForm({ origemId: "", destinoId: "", valor: "", data: new Date().toISOString().split("T")[0], descricao: "Transferência" });
     if (selectedConta) loadTxs(selectedConta.id);
+    load();
+  }
+
+  function openAddPix() {
+    setEditingPix(null);
+    setPixForm({ tipo: "CPF", chave: "", titular: "", conta_bancaria_id: "", ativa: true });
+    setShowPix(true);
+  }
+
+  function openEditPix(p: ChavePix) {
+    setEditingPix(p);
+    setPixForm({
+      tipo: p.tipo,
+      chave: p.chave,
+      titular: p.titular ?? "",
+      conta_bancaria_id: p.conta_bancaria_id ?? "",
+      ativa: p.ativa,
+    });
+    setShowPix(true);
+  }
+
+  async function submitPix(e: React.FormEvent) {
+    e.preventDefault();
+    if (submitting) return;
+    const chave = pixForm.chave.trim();
+    if (!chave) { toast.error("Informe a chave PIX."); return; }
+    const payload = {
+      tipo: pixForm.tipo,
+      chave,
+      titular: pixForm.titular.trim() || null,
+      conta_bancaria_id: pixForm.conta_bancaria_id || null,
+      ativa: pixForm.ativa,
+    };
+    setSubmitting(true);
+    const req = editingPix
+      ? supabase.from("chaves_pix").update(payload).eq("id", editingPix.id)
+      : supabase.from("chaves_pix").insert(payload);
+    const { error } = await req;
+    setSubmitting(false);
+    if (error) { toast.error(translateError(error)); return; }
+    toast.success(editingPix ? "Chave PIX atualizada!" : "Chave PIX criada!");
+    setShowPix(false);
+    load();
+  }
+
+  async function deletePix(p: ChavePix) {
+    if (!window.confirm(`Excluir a chave PIX "${p.chave}"?`)) return;
+    const { error } = await supabase.from("chaves_pix").delete().eq("id", p.id);
+    if (error) { toast.error(translateError(error)); return; }
+    toast.success("Chave PIX excluída.");
     load();
   }
 
@@ -205,6 +265,137 @@ export default function ContasBancarias() {
           </CardContent>
         </Card>
       )}
+
+      {/* Seção Chaves PIX */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Key className="h-5 w-5 text-primary" /> Chaves PIX
+          </CardTitle>
+          {isAdmin && (
+            <Button size="sm" onClick={openAddPix}>
+              <Plus className="h-4 w-4 mr-1" /> Nova Chave PIX
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {chavesPix.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              Nenhuma chave PIX cadastrada. As chaves aparecerão nos contratos e recibos.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Chave</TableHead>
+                  <TableHead>Titular</TableHead>
+                  <TableHead>Conta Vinculada</TableHead>
+                  <TableHead>Status</TableHead>
+                  {isAdmin && <TableHead className="text-right">Ações</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {chavesPix.map(p => {
+                  const contaLigada = contas.find(c => c.id === p.conta_bancaria_id);
+                  return (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-medium">{p.tipo}</TableCell>
+                      <TableCell className="font-mono text-xs">{p.chave}</TableCell>
+                      <TableCell>{p.titular ?? "—"}</TableCell>
+                      <TableCell>
+                        {contaLigada ? (
+                          <span className="inline-flex items-center gap-1 text-sm">
+                            <LinkIcon className="h-3 w-3 text-muted-foreground" />
+                            {contaLigada.nome}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">Sem vínculo</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {p.ativa
+                          ? <span className="text-xs text-emerald-600 font-medium">Ativa</span>
+                          : <span className="text-xs text-muted-foreground">Inativa</span>}
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right">
+                          <div className="flex gap-1 justify-end">
+                            <Button size="sm" variant="ghost" onClick={() => openEditPix(p)}>
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => deletePix(p)}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dialog Chave PIX */}
+      <Dialog open={showPix} onOpenChange={setShowPix}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editingPix ? "Editar Chave PIX" : "Nova Chave PIX"}</DialogTitle></DialogHeader>
+          <form onSubmit={submitPix} className="space-y-3">
+            <div>
+              <Label>Tipo da Chave</Label>
+              <Select value={pixForm.tipo} onValueChange={(v) => setPixForm({ ...pixForm, tipo: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TIPOS_CHAVE_PIX.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Chave</Label>
+              <Input value={pixForm.chave} onChange={(e) => setPixForm({ ...pixForm, chave: e.target.value })} required placeholder={
+                pixForm.tipo === "CPF" ? "000.000.000-00" :
+                pixForm.tipo === "CNPJ" ? "00.000.000/0000-00" :
+                pixForm.tipo === "Email" ? "email@exemplo.com" :
+                pixForm.tipo === "Telefone" ? "+55 61 90000-0000" :
+                "chave aleatória UUID"
+              } />
+            </div>
+            <div>
+              <Label>Titular da Chave</Label>
+              <Input value={pixForm.titular} onChange={(e) => setPixForm({ ...pixForm, titular: e.target.value })} placeholder="Ex: Meu Carro Online LTDA" />
+            </div>
+            <div>
+              <Label>Conta Bancária Vinculada</Label>
+              <Select value={pixForm.conta_bancaria_id || "__none__"} onValueChange={(v) => setPixForm({ ...pixForm, conta_bancaria_id: v === "__none__" ? "" : v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione uma conta" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sem vínculo</SelectItem>
+                  {contas.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Você pode mudar o vínculo depois — útil quando trocar a chave PIX de banco.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="pix-ativa"
+                checked={pixForm.ativa}
+                onChange={(e) => setPixForm({ ...pixForm, ativa: e.target.checked })}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="pix-ativa" className="cursor-pointer">Chave ativa</Label>
+            </div>
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting ? "Salvando..." : (editingPix ? "Atualizar" : "Criar Chave")}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

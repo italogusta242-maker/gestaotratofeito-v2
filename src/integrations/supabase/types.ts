@@ -62,8 +62,54 @@ export type Database = {
         }
         Relationships: []
       }
+      chaves_pix: {
+        Row: {
+          ativa: boolean
+          chave: string
+          conta_bancaria_id: string | null
+          created_at: string
+          id: string
+          tipo: string
+          titular: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativa?: boolean
+          chave: string
+          conta_bancaria_id?: string | null
+          created_at?: string
+          id?: string
+          tipo: string
+          titular?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativa?: boolean
+          chave?: string
+          conta_bancaria_id?: string | null
+          created_at?: string
+          id?: string
+          tipo?: string
+          titular?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chaves_pix_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
+          bairro: string | null
+          cep: string | null
+          chave_pix: string | null
+          chave_pix_tipo: string | null
+          cidade: string | null
           cpf_cnpj: string
           created_at: string
           data_nascimento: string | null
@@ -75,9 +121,15 @@ export type Database = {
           nome: string
           rg: string | null
           telefone: string | null
+          uf: string | null
           updated_at: string
         }
         Insert: {
+          bairro?: string | null
+          cep?: string | null
+          chave_pix?: string | null
+          chave_pix_tipo?: string | null
+          cidade?: string | null
           cpf_cnpj: string
           created_at?: string
           data_nascimento?: string | null
@@ -89,9 +141,15 @@ export type Database = {
           nome: string
           rg?: string | null
           telefone?: string | null
+          uf?: string | null
           updated_at?: string
         }
         Update: {
+          bairro?: string | null
+          cep?: string | null
+          chave_pix?: string | null
+          chave_pix_tipo?: string | null
+          cidade?: string | null
           cpf_cnpj?: string
           created_at?: string
           data_nascimento?: string | null
@@ -103,6 +161,7 @@ export type Database = {
           nome?: string
           rg?: string | null
           telefone?: string | null
+          uf?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -454,8 +513,10 @@ export type Database = {
       }
       veiculos: {
         Row: {
+          alienacao_fiduciaria: string | null
           ano: string
           ano_modelo: string | null
+          categoria: string | null
           centro_custo_id: string | null
           chassi: string | null
           cliente_compra_id: string | null
@@ -465,6 +526,7 @@ export type Database = {
           created_at: string
           data_entrada_patio: string | null
           desconto: number
+          especie: string | null
           forma_pagamento: string | null
           id: string
           ipva: number
@@ -474,6 +536,7 @@ export type Database = {
           marca_modelo: string
           multas: number
           placa: string
+          quilometragem: number | null
           renavam: string | null
           status: string
           updated_at: string
@@ -481,8 +544,10 @@ export type Database = {
           valor_venda: number | null
         }
         Insert: {
+          alienacao_fiduciaria?: string | null
           ano: string
           ano_modelo?: string | null
+          categoria?: string | null
           centro_custo_id?: string | null
           chassi?: string | null
           cliente_compra_id?: string | null
@@ -492,6 +557,7 @@ export type Database = {
           created_at?: string
           data_entrada_patio?: string | null
           desconto?: number
+          especie?: string | null
           forma_pagamento?: string | null
           id?: string
           ipva?: number
@@ -501,6 +567,7 @@ export type Database = {
           marca_modelo: string
           multas?: number
           placa: string
+          quilometragem?: number | null
           renavam?: string | null
           status?: string
           updated_at?: string
@@ -508,8 +575,10 @@ export type Database = {
           valor_venda?: number | null
         }
         Update: {
+          alienacao_fiduciaria?: string | null
           ano?: string
           ano_modelo?: string | null
+          categoria?: string | null
           centro_custo_id?: string | null
           chassi?: string | null
           cliente_compra_id?: string | null
@@ -519,6 +588,7 @@ export type Database = {
           created_at?: string
           data_entrada_patio?: string | null
           desconto?: number
+          especie?: string | null
           forma_pagamento?: string | null
           id?: string
           ipva?: number
@@ -528,6 +598,7 @@ export type Database = {
           marca_modelo?: string
           multas?: number
           placa?: string
+          quilometragem?: number | null
           renavam?: string | null
           status?: string
           updated_at?: string

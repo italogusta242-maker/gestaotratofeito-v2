@@ -7,8 +7,9 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatBRL, parseDateLocal } from "@/lib/format";
 import { EMPRESA } from "@/lib/empresa";
+import { fetchPixEmpresa } from "@/lib/pix";
 import logoTratoFeito from "@/assets/logo-trato-feito.png";
-import type { Veiculo, Cliente, Transacao } from "@/lib/db-types";
+import type { Veiculo, Cliente, Transacao, ChavePix } from "@/lib/db-types";
 
 export default function ContratoRepasse() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +17,7 @@ export default function ContratoRepasse() {
   const [veiculo, setVeiculo] = useState<Veiculo | null>(null);
   const [comprador, setComprador] = useState<Cliente | null>(null);
   const [pagamentos, setPagamentos] = useState<Transacao[]>([]);
+  const [pixEmpresa, setPixEmpresa] = useState<ChavePix | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,6 +36,7 @@ export default function ContratoRepasse() {
         .eq("tipo", "Receita")
         .order("data_vencimento");
       setPagamentos(txs ?? []);
+      setPixEmpresa(await fetchPixEmpresa());
       setLoading(false);
     })();
   }, [id]);
@@ -110,6 +113,8 @@ export default function ContratoRepasse() {
             <div className="col-span-2"><span className="font-semibold">Chassi:</span> {veiculo.chassi ?? "_______________________________"}</div>
             <div><span className="font-semibold">Cor:</span> {veiculo.cor ?? "_______________"}</div>
             <div><span className="font-semibold">Combustível:</span> {veiculo.combustivel ?? "_______________"}</div>
+            <div><span className="font-semibold">KM:</span> {veiculo.quilometragem != null ? `${veiculo.quilometragem.toLocaleString("pt-BR")}` : "_______________"}</div>
+            <div><span className="font-semibold">Espécie:</span> {veiculo.especie ?? "_______________"}</div>
           </div>
         </section>
 
@@ -151,7 +156,7 @@ export default function ContratoRepasse() {
             </tbody>
           </table>
 
-          <p className="mb-2">2.2. O pagamento poderá ser realizado mediante <strong>PIX</strong>, em conta de titularidade da CONTRATADA, <strong>CHAVE: _______________________________</strong>, sendo obrigatória a apresentação do respectivo comprovante pela CONTRATANTE.</p>
+          <p className="mb-2">2.2. O pagamento poderá ser realizado mediante <strong>PIX</strong>, em conta de titularidade da CONTRATADA, <strong>CHAVE ({pixEmpresa?.tipo ?? "____"}): {pixEmpresa?.chave ?? "_______________________________"}</strong>, sendo obrigatória a apresentação do respectivo comprovante pela CONTRATANTE.</p>
           <p className="mb-2">2.3. É expressamente vedada a realização de qualquer pagamento diretamente a colaboradores, prepostos ou terceiros não indicados formalmente pela CONTRATADA, sob pena de o pagamento não ser reconhecido como quitação da obrigação.</p>
           <p className="mb-2">2.4. O inadimplemento, pela CONTRATANTE, de qualquer obrigação financeira prevista neste Contrato ou em contratos anteriores firmados entre as partes constituirá, de pleno direito, imediata resilição contratual, sujeitando o CONTRATANTE INADIMPLENTE ao pagamento das despesas e prejuízos que essa mora deu causa, autorizando a CONTRATADA INOCENTE a retenção de parte dos valores recebidos para liquidação dos débitos.</p>
         </section>

@@ -202,6 +202,7 @@ export default function VeiculoDetalhe() {
   }
 
   function openEdit() {
+    if (!veiculo) return;
     setEditForm({
       placa: veiculo.placa,
       marca_modelo: veiculo.marca_modelo,
@@ -211,6 +212,10 @@ export default function VeiculoDetalhe() {
       renavam: veiculo.renavam || "",
       chassi: veiculo.chassi || "",
       combustivel: veiculo.combustivel || "",
+      quilometragem: veiculo.quilometragem ?? "",
+      especie: veiculo.especie || "",
+      categoria: veiculo.categoria || "",
+      alienacao_fiduciaria: veiculo.alienacao_fiduciaria || "",
       valor_aquisicao: veiculo.valor_aquisicao,
       valor_venda: veiculo.valor_venda || 0,
       data_entrada_patio: veiculo.data_entrada_patio || "",
@@ -230,10 +235,14 @@ export default function VeiculoDetalhe() {
       ano_modelo: editForm.ano_modelo || editForm.ano,
       cor: editForm.cor.toUpperCase(),
       renavam: editForm.renavam,
-      chassi: editForm.chassi?.toUpperCase() || null,
-      combustivel: editForm.combustivel || null,
-      valor_aquisicao: parseFloat(editForm.valor_aquisicao) || 0,
-      valor_venda: parseFloat(editForm.valor_venda) || 0,
+      chassi: (editForm.chassi as string)?.toUpperCase() || null,
+      combustivel: (editForm.combustivel as string) || null,
+      quilometragem: editForm.quilometragem === "" || editForm.quilometragem == null ? null : parseInt(String(editForm.quilometragem), 10),
+      especie: (editForm.especie as string) || null,
+      categoria: (editForm.categoria as string) || null,
+      alienacao_fiduciaria: (editForm.alienacao_fiduciaria as string)?.trim() || null,
+      valor_aquisicao: parseFloat(String(editForm.valor_aquisicao)) || 0,
+      valor_venda: parseFloat(String(editForm.valor_venda)) || 0,
       data_entrada_patio: editForm.data_entrada_patio || null,
       centro_custo_id: editForm.centro_custo_id || null,
       cliente_compra_id: editForm.cliente_compra_id || null,
@@ -586,7 +595,37 @@ export default function VeiculoDetalhe() {
                 <div><Label>Ano Modelo</Label><Input value={editForm.ano_modelo} onChange={(e) => setEditForm({ ...editForm, ano_modelo: e.target.value })} /></div>
                 <div><Label>Cor</Label><Input value={editForm.cor} onChange={(e) => setEditForm({ ...editForm, cor: e.target.value.toUpperCase() })} className="uppercase" /></div>
                 <div><Label>Renavam</Label><Input value={editForm.renavam} onChange={(e) => setEditForm({ ...editForm, renavam: e.target.value })} /></div>
-                <div><Label>Chassi</Label><Input value={editForm.chassi} onChange={(e) => setEditForm({ ...editForm, chassi: e.target.value.toUpperCase() })} className="uppercase" /></div>
+                <div><Label>Chassi</Label><Input value={editForm.chassi as string} onChange={(e) => setEditForm({ ...editForm, chassi: e.target.value.toUpperCase() })} className="uppercase" /></div>
+                <div><Label>Quilometragem (KM)</Label><Input type="number" min="0" value={editForm.quilometragem as string | number} onChange={(e) => setEditForm({ ...editForm, quilometragem: e.target.value })} /></div>
+                <div>
+                  <Label>Espécie/Tipo</Label>
+                  <Select value={editForm.especie as string} onValueChange={(v) => setEditForm({ ...editForm, especie: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Automóvel">Automóvel</SelectItem>
+                      <SelectItem value="Motocicleta">Motocicleta</SelectItem>
+                      <SelectItem value="Caminhonete">Caminhonete</SelectItem>
+                      <SelectItem value="Caminhão">Caminhão</SelectItem>
+                      <SelectItem value="Utilitário">Utilitário</SelectItem>
+                      <SelectItem value="Ônibus">Ônibus</SelectItem>
+                      <SelectItem value="Outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Categoria</Label>
+                  <Select value={editForm.categoria as string} onValueChange={(v) => setEditForm({ ...editForm, categoria: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Particular">Particular</SelectItem>
+                      <SelectItem value="Aluguel">Aluguel</SelectItem>
+                      <SelectItem value="Comercial">Comercial</SelectItem>
+                      <SelectItem value="Oficial">Oficial</SelectItem>
+                      <SelectItem value="Diplomática">Diplomática</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Alienação Fiduciária</Label><Input value={editForm.alienacao_fiduciaria as string} onChange={(e) => setEditForm({ ...editForm, alienacao_fiduciaria: e.target.value })} placeholder="Ex: Sem, Banco XYZ" /></div>
                 <div>
                   <Label>Combustível</Label>
                   <Select value={editForm.combustivel} onValueChange={(v) => setEditForm({ ...editForm, combustivel: v })}>

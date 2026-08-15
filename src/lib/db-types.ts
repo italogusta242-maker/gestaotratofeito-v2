@@ -15,6 +15,7 @@ export type ClienteInsert = Tables["clientes"]["Insert"];
 
 export type CentroCusto = Tables["centros_custo"]["Row"];
 export type ContaBancaria = Tables["contas_bancarias"]["Row"];
+export type ChavePix = Tables["chaves_pix"]["Row"];
 export type Cartao = Tables["cartoes"]["Row"];
 export type Financiamento = Tables["financiamentos"]["Row"];
 export type ContaFixa = Tables["contas_fixas"]["Row"];

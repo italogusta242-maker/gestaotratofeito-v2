@@ -28,6 +28,10 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
   const [centros, setCentros] = useState<CentroCusto[]>([]);
   const [form, setForm] = useState({
     placa: "", marca_modelo: "", ano: "", ano_modelo: "", cor: "", renavam: "", chassi: "", combustivel: "",
+    quilometragem: "",
+    especie: "",
+    categoria: "",
+    alienacao_fiduciaria: "",
     valor_aquisicao: defaultValues?.valor_aquisicao ?? "",
     debitos_veiculo: "",
     ipva: "",
@@ -72,6 +76,8 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
     const licenciamentoNum = parseFloat(form.licenciamento) || 0;
     const descontoNum = parseFloat(form.desconto) || 0;
 
+    const kmNum = parseInt(form.quilometragem, 10);
+
     const { data, error } = await supabase.from("veiculos").insert({
       placa: form.placa.toUpperCase(),
       marca_modelo: form.marca_modelo.toUpperCase(),
@@ -81,6 +87,10 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
       renavam: form.renavam,
       chassi: form.chassi.toUpperCase() || null,
       combustivel: form.combustivel || null,
+      quilometragem: Number.isFinite(kmNum) ? kmNum : null,
+      especie: form.especie || null,
+      categoria: form.categoria || null,
+      alienacao_fiduciaria: form.alienacao_fiduciaria.trim() || null,
       valor_aquisicao: parseFloat(form.valor_aquisicao) || 0,
       ipva: ipvaNum,
       multas: multasNum,
@@ -174,6 +184,36 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
             <div><Label>Cor</Label><Input value={form.cor} onChange={e => setForm({ ...form, cor: upper(e.target.value) })} className="uppercase" /></div>
             <div><Label>Renavam</Label><Input value={form.renavam} onChange={e => setForm({ ...form, renavam: e.target.value })} /></div>
             <div><Label>Chassi</Label><Input value={form.chassi} onChange={e => setForm({ ...form, chassi: upper(e.target.value) })} className="uppercase" /></div>
+            <div><Label>Quilometragem (KM)</Label><Input type="number" min="0" value={form.quilometragem} onChange={e => setForm({ ...form, quilometragem: e.target.value })} placeholder="Ex: 45000" /></div>
+            <div>
+              <Label>Espécie/Tipo</Label>
+              <Select value={form.especie} onValueChange={v => setForm({ ...form, especie: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Automóvel">Automóvel</SelectItem>
+                  <SelectItem value="Motocicleta">Motocicleta</SelectItem>
+                  <SelectItem value="Caminhonete">Caminhonete</SelectItem>
+                  <SelectItem value="Caminhão">Caminhão</SelectItem>
+                  <SelectItem value="Utilitário">Utilitário</SelectItem>
+                  <SelectItem value="Ônibus">Ônibus</SelectItem>
+                  <SelectItem value="Outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Categoria</Label>
+              <Select value={form.categoria} onValueChange={v => setForm({ ...form, categoria: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Particular">Particular</SelectItem>
+                  <SelectItem value="Aluguel">Aluguel</SelectItem>
+                  <SelectItem value="Comercial">Comercial</SelectItem>
+                  <SelectItem value="Oficial">Oficial</SelectItem>
+                  <SelectItem value="Diplomática">Diplomática</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Alienação Fiduciária</Label><Input value={form.alienacao_fiduciaria} onChange={e => setForm({ ...form, alienacao_fiduciaria: e.target.value })} placeholder="Ex: Sem, Banco XYZ" /></div>
             <div>
               <Label>Combustível</Label>
               <Select value={form.combustivel} onValueChange={v => setForm({ ...form, combustivel: v })}>
