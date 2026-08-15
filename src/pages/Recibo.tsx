@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft } from "lucide-react";
 import logoTratoFeito from "@/assets/logo-trato-feito.png";
-import { formatBRL } from "@/lib/format";
+import { formatBRL, formatDateBR } from "@/lib/format";
 import type { VeiculoComCentro, Transacao, Cliente } from "@/lib/db-types";
 
 export default function Recibo() {
@@ -68,7 +68,7 @@ export default function Recibo() {
             <h2 className="text-sm font-semibold border-b border-gray-200 pb-1 mb-3 text-gray-700 uppercase">Informações da Venda</h2>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div><span className="font-semibold">Valor da Venda:</span> {formatBRL(Number(vendaTx.valor))}</div>
-              <div><span className="font-semibold">Data:</span> {vendaTx.data_pagamento ?? vendaTx.data_vencimento}</div>
+              <div><span className="font-semibold">Data:</span> {formatDateBR(vendaTx.data_pagamento ?? vendaTx.data_vencimento)}</div>
             </div>
           </div>
         )}
@@ -103,12 +103,7 @@ export default function Recibo() {
         </div>
 
         <p className="text-xs text-center text-gray-400 mt-6">
-          Data de emissão: {(() => {
-            const dateStr = vendaTx?.data_pagamento ?? vendaTx?.data_vencimento;
-            if (!dateStr) return new Date().toLocaleDateString("pt-BR");
-            const [y, m, d] = dateStr.split("-");
-            return `${d}/${m}/${y}`;
-          })()}
+          Data de emissão: {formatDateBR(vendaTx?.data_pagamento ?? vendaTx?.data_vencimento) || new Date().toLocaleDateString("pt-BR")}
         </p>
       </div>
     </div>

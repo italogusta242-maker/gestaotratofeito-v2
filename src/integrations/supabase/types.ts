@@ -255,6 +255,30 @@ export type Database = {
           },
         ]
       }
+      ia_cache_respostas: {
+        Row: {
+          created_at: string
+          id: string
+          query_usuario: string
+          resposta_ia: string
+          tipo_intencao: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          query_usuario: string
+          resposta_ia: string
+          tipo_intencao: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          query_usuario?: string
+          resposta_ia?: string
+          tipo_intencao?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -440,10 +464,15 @@ export type Database = {
           cor: string | null
           created_at: string
           data_entrada_patio: string | null
+          desconto: number
+          forma_pagamento: string | null
           id: string
+          ipva: number
           is_consignment: boolean
+          licenciamento: number
           localizacao: string
           marca_modelo: string
+          multas: number
           placa: string
           renavam: string | null
           status: string
@@ -462,10 +491,15 @@ export type Database = {
           cor?: string | null
           created_at?: string
           data_entrada_patio?: string | null
+          desconto?: number
+          forma_pagamento?: string | null
           id?: string
+          ipva?: number
           is_consignment?: boolean
+          licenciamento?: number
           localizacao?: string
           marca_modelo: string
+          multas?: number
           placa: string
           renavam?: string | null
           status?: string
@@ -484,10 +518,15 @@ export type Database = {
           cor?: string | null
           created_at?: string
           data_entrada_patio?: string | null
+          desconto?: number
+          forma_pagamento?: string | null
           id?: string
+          ipva?: number
           is_consignment?: boolean
+          licenciamento?: number
           localizacao?: string
           marca_modelo?: string
+          multas?: number
           placa?: string
           renavam?: string | null
           status?: string

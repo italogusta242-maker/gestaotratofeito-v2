@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Car, ShoppingCart, Trash2, FileText, Upload, Download, Loader2, Plus, Pencil, Calendar, User, FileSignature } from "lucide-react";
+import { ArrowLeft, Car, ShoppingCart, Trash2, FileText, Upload, Download, Loader2, Plus, Pencil, Calendar, User, FileSignature, Undo2 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import DespesaDialog from "@/components/DespesaDialog";
 import VendaDialog from "@/components/VendaDialog";
@@ -107,6 +107,51 @@ export default function VeiculoDetalhe() {
     await supabase.from("veiculos").update({ status: newStatus }).eq("id", id!);
     setVeiculo((v) => (v ? { ...v, status: newStatus } : v));
     toast.success(`Status atualizado para "${newStatus}"`);
+  }
+
+  async function handleDesfazerVenda() {
+    if (!id) return;
+    const ok = window.confirm(
+      "Desfazer a venda deste veículo?\n\n" +
+      "• Todas as transações de venda serão APAGADAS (venda, saldo e troca).\n" +
+      "• O veículo volta para 'Em Estoque'.\n" +
+      "• Esta ação não pode ser desfeita.\n\n" +
+      "Confirma?"
+    );
+    if (!ok) return;
+
+    try {
+      // 1. Deleta transações relacionadas à venda deste veículo
+      const { error: txErr } = await supabase
+        .from("transacoes")
+        .delete()
+        .eq("veiculo_id", id)
+        .in("categoria", ["Venda de Veículo", "Venda de Veículo (Saldo)", "Troca de Veículo"]);
+      if (txErr) {
+        toast.error("Não foi possível apagar as transações: " + translateError(txErr));
+        return;
+      }
+
+      // 2. Volta veículo para "Em Estoque" e limpa comprador
+      const { error: vErr } = await supabase
+        .from("veiculos")
+        .update({ status: "Em Estoque", cliente_venda_id: null })
+        .eq("id", id);
+      if (vErr) {
+        toast.error("Não foi possível reverter o status: " + translateError(vErr));
+        return;
+      }
+
+      toast.success("Venda desfeita. Atualizando telas...");
+      // Reload total garante que Dashboard, Caixa Diário, A Pagar/Receber e outras
+      // telas não mostrem receitas fantasmas em cache.
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+      const msg = err instanceof TypeError
+        ? "Sem conexão com o servidor. Tente novamente."
+        : `Erro inesperado: ${err instanceof Error ? err.message : String(err)}`;
+      toast.error(msg);
+    }
   }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -271,6 +316,12 @@ export default function VeiculoDetalhe() {
           {canWrite && veiculo.status !== "Vendido" && (
             <Button className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setShowVenda(true)}>
               <ShoppingCart className="h-4 w-4" /> Realizar Venda
+            </Button>
+          )}
+
+          {role === "admin" && veiculo.status === "Vendido" && (
+            <Button variant="outline" className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10" onClick={handleDesfazerVenda}>
+              <Undo2 className="h-4 w-4" /> Desfazer Venda
             </Button>
           )}
         </div>
