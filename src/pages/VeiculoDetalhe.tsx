@@ -8,15 +8,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Car, ShoppingCart, Trash2, FileText, Upload, Download, Loader2, Plus, Pencil, Calendar, User, FileSignature, Undo2 } from "lucide-react";
+import { ArrowLeft, Car, ShoppingCart, Trash2, FileText, Upload, Download, Loader2, Plus, Pencil, Calendar, User, FileSignature, Undo2, X } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import DespesaDialog from "@/components/DespesaDialog";
 import VendaDialog from "@/components/VendaDialog";
 import ClienteSelector from "@/components/ClienteSelector";
 import { formatBRL } from "@/lib/format";
+import { syncDespesaCategoria } from "@/lib/veiculo-despesas";
 import type { VeiculoComCentro, Cliente, Transacao, CentroCusto } from "@/lib/db-types";
 import { translateError } from "@/lib/supabase-errors";
 
@@ -35,7 +37,7 @@ const statusColor: Record<string, string> = {
 export default function VeiculoDetalhe() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const canWrite = role === "admin" || role === "auxiliar_operacional";
   const isEmissao = role === "auxiliar_emissao";
 
@@ -52,6 +54,7 @@ export default function VeiculoDetalhe() {
   const [showProcuracao, setShowProcuracao] = useState(false);
   const [tipoReconhecimento, setTipoReconhecimento] = useState("GOV.BR");
   const [editForm, setEditForm] = useState<Record<string, string | number | null>>({});
+  const [editDeducoes, setEditDeducoes] = useState<{ id: string | null; txId: string | null; descricao: string; valor: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -218,18 +221,46 @@ export default function VeiculoDetalhe() {
       alienacao_fiduciaria: veiculo.alienacao_fiduciaria || "",
       valor_aquisicao: veiculo.valor_aquisicao,
       valor_venda: veiculo.valor_venda || 0,
+      ipva: veiculo.ipva ?? "",
+      multas: veiculo.multas ?? "",
+      licenciamento: veiculo.licenciamento ?? "",
+      desconto: veiculo.desconto ?? "",
+      debitos_gerais: transacoes.find(t => t.categoria === "Despesa de Veículo")?.valor ?? "",
+      forma_pagamento: veiculo.forma_pagamento || "",
+      is_consignment: veiculo.is_consignment ? "true" : "false",
       data_entrada_patio: veiculo.data_entrada_patio || "",
       centro_custo_id: veiculo.centro_custo_id || "",
       cliente_compra_id: veiculo.cliente_compra_id || null,
       cliente_venda_id: veiculo.cliente_venda_id || null,
     });
+    // Carrega deduções personalizadas existentes (categoria "Dedução")
+    const existentes = transacoes
+      .filter(t => t.categoria === "Dedução" && t.tipo === "Despesa")
+      .map(t => ({
+        id: crypto.randomUUID(),
+        txId: t.id,
+        descricao: t.descricao.replace(new RegExp(` - ${veiculo.placa}$`), ""),
+        valor: String(t.valor),
+      }));
+    setEditDeducoes(existentes);
     setShowEdit(true);
   }
 
   async function handleSaveEdit(e: React.FormEvent) {
     e.preventDefault();
+    if (!veiculo || !id) return;
+
+    const ipvaNum = parseFloat(String(editForm.ipva)) || 0;
+    const multasNum = parseFloat(String(editForm.multas)) || 0;
+    const licenciamentoNum = parseFloat(String(editForm.licenciamento)) || 0;
+    const descontoNum = parseFloat(String(editForm.desconto)) || 0;
+    const debitosGeraisNum = parseFloat(String(editForm.debitos_gerais)) || 0;
+    const placaUpper = editForm.placa.toUpperCase();
+    const dataVenc = (editForm.data_entrada_patio as string) || veiculo.data_entrada_patio || new Date().toISOString().split("T")[0];
+    const centroId = (editForm.centro_custo_id as string) || null;
+
     const { error } = await supabase.from("veiculos").update({
-      placa: editForm.placa.toUpperCase(),
+      placa: placaUpper,
       marca_modelo: editForm.marca_modelo.toUpperCase(),
       ano: editForm.ano,
       ano_modelo: editForm.ano_modelo || editForm.ano,
@@ -243,13 +274,66 @@ export default function VeiculoDetalhe() {
       alienacao_fiduciaria: (editForm.alienacao_fiduciaria as string)?.trim() || null,
       valor_aquisicao: parseFloat(String(editForm.valor_aquisicao)) || 0,
       valor_venda: parseFloat(String(editForm.valor_venda)) || 0,
+      ipva: ipvaNum,
+      multas: multasNum,
+      licenciamento: licenciamentoNum,
+      desconto: descontoNum,
+      forma_pagamento: (editForm.forma_pagamento as string) || null,
+      is_consignment: editForm.is_consignment === "true",
       data_entrada_patio: editForm.data_entrada_patio || null,
-      centro_custo_id: editForm.centro_custo_id || null,
+      centro_custo_id: centroId,
       cliente_compra_id: editForm.cliente_compra_id || null,
       cliente_venda_id: editForm.cliente_venda_id || null,
-    }).eq("id", id!);
+    }).eq("id", id);
     if (error) { toast.error(translateError(error)); return; }
-    toast.success("Veículo atualizado!");
+
+    // Sincroniza transações de despesa por categoria (edita/cria/apaga conforme o valor)
+    try {
+      await Promise.all([
+        syncDespesaCategoria({ veiculoId: id, categoria: "IPVA", descricaoBase: `IPVA - ${placaUpper}`, novoValor: ipvaNum, centroId, dataVencimento: dataVenc, userId: user?.id }),
+        syncDespesaCategoria({ veiculoId: id, categoria: "Multas", descricaoBase: `Multas - ${placaUpper}`, novoValor: multasNum, centroId, dataVencimento: dataVenc, userId: user?.id }),
+        syncDespesaCategoria({ veiculoId: id, categoria: "Licenciamento", descricaoBase: `Licenciamento - ${placaUpper}`, novoValor: licenciamentoNum, centroId, dataVencimento: dataVenc, userId: user?.id }),
+        syncDespesaCategoria({ veiculoId: id, categoria: "Despesa de Veículo", descricaoBase: `Débitos de Veículo - ${placaUpper}`, novoValor: debitosGeraisNum, centroId, dataVencimento: dataVenc, userId: user?.id }),
+      ]);
+
+      // Sync das deduções personalizadas (categoria "Dedução")
+      const txIdsAtuais = new Set(editDeducoes.filter(d => d.txId).map(d => d.txId as string));
+      const txIdsOriginais = transacoes.filter(t => t.categoria === "Dedução" && t.tipo === "Despesa").map(t => t.id);
+      const removidas = txIdsOriginais.filter(txId => !txIdsAtuais.has(txId));
+      if (removidas.length > 0) {
+        await supabase.from("transacoes").delete().in("id", removidas);
+      }
+      for (const d of editDeducoes) {
+        const v = parseFloat(d.valor) || 0;
+        const desc = d.descricao.trim();
+        if (!desc || v <= 0) {
+          // Se linha ficou inválida (vazia) e tinha txId, remove
+          if (d.txId) await supabase.from("transacoes").delete().eq("id", d.txId);
+          continue;
+        }
+        const descFinal = `${desc} - ${placaUpper}`;
+        if (d.txId) {
+          await supabase.from("transacoes").update({ descricao: descFinal, valor: v }).eq("id", d.txId);
+        } else {
+          await supabase.from("transacoes").insert({
+            descricao: descFinal,
+            valor: v,
+            tipo: "Despesa",
+            status: "Pendente",
+            data_vencimento: dataVenc,
+            centro_custo_id: centroId,
+            veiculo_id: id,
+            categoria: "Dedução",
+            user_id: user?.id,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("sync despesas:", err);
+      toast.error("Veículo atualizado, mas houve erro ao sincronizar despesas. Verifique a lista de transações.");
+    }
+
+    toast.success("Veículo atualizado e despesas sincronizadas!");
     setShowEdit(false);
     loadAll();
   }
@@ -585,7 +669,7 @@ export default function VeiculoDetalhe() {
       {/* Edit Dialog */}
       {showEdit && (
         <Dialog open onOpenChange={() => setShowEdit(false)}>
-          <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Editar Veículo</DialogTitle></DialogHeader>
             <form onSubmit={handleSaveEdit} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
@@ -643,8 +727,72 @@ export default function VeiculoDetalhe() {
                 </div>
                 <div><Label>Valor Aquisição</Label><Input type="number" step="0.01" value={editForm.valor_aquisicao} onChange={(e) => setEditForm({ ...editForm, valor_aquisicao: e.target.value })} required /></div>
                 <div><Label>Valor Venda</Label><Input type="number" step="0.01" value={editForm.valor_venda} onChange={(e) => setEditForm({ ...editForm, valor_venda: e.target.value })} /></div>
+                <div><Label>Desconto (R$)</Label><Input type="number" step="0.01" value={editForm.desconto as string | number} onChange={(e) => setEditForm({ ...editForm, desconto: e.target.value })} /></div>
+                <div><Label>Débitos Gerais (R$)</Label><Input type="number" step="0.01" value={editForm.debitos_gerais as string | number} onChange={(e) => setEditForm({ ...editForm, debitos_gerais: e.target.value })} /></div>
+                <div><Label>IPVA (R$)</Label><Input type="number" step="0.01" value={editForm.ipva as string | number} onChange={(e) => setEditForm({ ...editForm, ipva: e.target.value })} /></div>
+                <div><Label>Multas (R$)</Label><Input type="number" step="0.01" value={editForm.multas as string | number} onChange={(e) => setEditForm({ ...editForm, multas: e.target.value })} /></div>
+                <div><Label>Licenciamento (R$)</Label><Input type="number" step="0.01" value={editForm.licenciamento as string | number} onChange={(e) => setEditForm({ ...editForm, licenciamento: e.target.value })} /></div>
+                <div>
+                  <Label>Forma de Pagamento</Label>
+                  <Select value={editForm.forma_pagamento as string} onValueChange={(v) => setEditForm({ ...editForm, forma_pagamento: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PIX">PIX</SelectItem>
+                      <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                      <SelectItem value="Transferência">Transferência</SelectItem>
+                      <SelectItem value="Cartão Débito">Cartão Débito</SelectItem>
+                      <SelectItem value="Cartão Crédito">Cartão Crédito</SelectItem>
+                      <SelectItem value="Cheque">Cheque</SelectItem>
+                      <SelectItem value="Financiamento Banco">Financiamento Banco</SelectItem>
+                      <SelectItem value="Veículo na Troca">Veículo na Troca</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div><Label>Data Entrada Pátio</Label><Input type="date" value={editForm.data_entrada_patio} onChange={(e) => setEditForm({ ...editForm, data_entrada_patio: e.target.value })} /></div>
               </div>
+
+              <div className="flex items-center gap-2 border-t pt-3">
+                <Switch checked={editForm.is_consignment === "true"} onCheckedChange={(v) => setEditForm({ ...editForm, is_consignment: v ? "true" : "false" })} />
+                <Label>Veículo Consignado</Label>
+              </div>
+
+              <div className="rounded-md bg-blue-500/10 border border-blue-500/30 p-2 text-[11px] text-blue-800">
+                ℹ️ Ao editar <strong>IPVA / Multas / Licenciamento / Débitos Gerais / Outras Deduções</strong>: a despesa financeira correspondente é <strong>atualizada</strong> (se o valor mudou), <strong>criada</strong> (se não existia) ou <strong>apagada</strong> (se você deixar 0 ou remover a linha). Sem duplicidade.
+              </div>
+
+              {/* Bloco de Outras Deduções editável */}
+              <div className="border rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold text-sm">Outras Deduções</h4>
+                    <p className="text-[11px] text-muted-foreground">Cada linha é uma despesa vinculada ao veículo. Edite, remova ou adicione.</p>
+                  </div>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setEditDeducoes(d => [...d, { id: crypto.randomUUID(), txId: null, descricao: "", valor: "" }])} className="gap-1">
+                    <Plus className="h-3 w-3" /> Adicionar
+                  </Button>
+                </div>
+                {editDeducoes.length === 0 && (
+                  <p className="text-xs text-muted-foreground italic py-1">Nenhuma dedução personalizada.</p>
+                )}
+                {editDeducoes.map((d) => (
+                  <div key={d.id} className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-7">
+                      <Label className="text-xs">Descrição</Label>
+                      <Input className="h-8 text-sm" value={d.descricao} onChange={(e) => setEditDeducoes(list => list.map(x => x.id === d.id ? { ...x, descricao: e.target.value } : x))} />
+                    </div>
+                    <div className="col-span-4">
+                      <Label className="text-xs">Valor (R$)</Label>
+                      <Input className="h-8 text-sm" type="number" step="0.01" value={d.valor} onChange={(e) => setEditDeducoes(list => list.map(x => x.id === d.id ? { ...x, valor: e.target.value } : x))} />
+                    </div>
+                    <div className="col-span-1 flex justify-center">
+                      <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setEditDeducoes(list => list.filter(x => x.id !== d.id))}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <div>
                 <Label>Centro de Custo</Label>
                 <Select value={editForm.centro_custo_id} onValueChange={(v) => setEditForm({ ...editForm, centro_custo_id: v })}>

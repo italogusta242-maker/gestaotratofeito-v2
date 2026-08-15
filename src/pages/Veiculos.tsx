@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import DespesaDialog from "@/components/DespesaDialog";
 import VendaDialog from "@/components/VendaDialog";
 import ClienteSelector from "@/components/ClienteSelector";
+import NovoVeiculoDialog from "@/components/NovoVeiculoDialog";
 import { differenceInDays } from "date-fns";
 import { formatPlaca, cleanPlaca } from "@/lib/format-placa";
 import { formatBRL, upperCase } from "@/lib/format";
@@ -190,62 +191,17 @@ export default function Veiculos() {
             </Button>
           </div>
           {canWrite && (
-            <Dialog open={showAdd} onOpenChange={setShowAdd}>
-              <DialogTrigger asChild>
-                <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Novo</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Novo Veículo</DialogTitle></DialogHeader>
-                <form onSubmit={handleSave} className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Placa</Label>
-                      <Input value={form.placa} onChange={(e) => handlePlacaChange(e.target.value)} required placeholder="ABC-1D23" maxLength={8} className="uppercase" />
-                    </div>
-                    <div><Label>Marca/Modelo</Label><Input value={form.marca_modelo} onChange={(e) => setForm({ ...form, marca_modelo: upperCase(e.target.value) })} required className="uppercase" /></div>
-                    <div><Label>Ano Fabricação</Label><Input value={form.ano} onChange={(e) => setForm({ ...form, ano: e.target.value })} required placeholder="2020" /></div>
-                    <div><Label>Ano Modelo</Label><Input value={form.ano_modelo} onChange={(e) => setForm({ ...form, ano_modelo: e.target.value })} placeholder="2021" /></div>
-                    <div><Label>Cor</Label><Input value={form.cor} onChange={(e) => setForm({ ...form, cor: upperCase(e.target.value) })} className="uppercase" /></div>
-                    <div><Label>Renavam</Label><Input value={form.renavam} onChange={(e) => setForm({ ...form, renavam: e.target.value })} /></div>
-                    <div><Label>Chassi</Label><Input value={form.chassi} onChange={(e) => setForm({ ...form, chassi: upperCase(e.target.value) })} className="uppercase" /></div>
-                    <div>
-                      <Label>Combustível</Label>
-                      <Select value={form.combustivel} onValueChange={(v) => setForm({ ...form, combustivel: v })}>
-                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="FLEX">Flex</SelectItem>
-                          <SelectItem value="GASOLINA">Gasolina</SelectItem>
-                          <SelectItem value="ETANOL">Etanol</SelectItem>
-                          <SelectItem value="DIESEL">Diesel</SelectItem>
-                          <SelectItem value="GNV">GNV</SelectItem>
-                          <SelectItem value="ELÉTRICO">Elétrico</SelectItem>
-                          <SelectItem value="HÍBRIDO">Híbrido</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div><Label>Valor Aquisição</Label><Input type="number" step="0.01" value={form.valor_aquisicao} onChange={(e) => setForm({ ...form, valor_aquisicao: e.target.value })} required /></div>
-                    <div><Label>Data Entrada Pátio</Label><Input type="date" value={form.data_entrada_patio} onChange={(e) => setForm({ ...form, data_entrada_patio: e.target.value })} /></div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={isConsignment} onCheckedChange={setIsConsignment} />
-                    <Label>Veículo Consignado</Label>
-                  </div>
-                  <ClienteSelector label={isConsignment ? "Dono do Veículo (obrigatório)" : "Comprado de (Cliente)"} value={clienteCompraId} onChange={setClienteCompraId} />
-                  <div>
-                    <Label>Centro de Custo</Label>
-                    <Select value={form.centro_custo_id} onValueChange={(v) => setForm({ ...form, centro_custo_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>
-                        {centros.filter(c => role === "admin" || c.nome !== "Casa").map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button type="submit" className="w-full">Salvar</Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <>
+              <Button size="sm" onClick={() => setShowAdd(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Novo
+              </Button>
+              {showAdd && (
+                <NovoVeiculoDialog
+                  open={showAdd}
+                  onClose={() => { setShowAdd(false); load(); }}
+                />
+              )}
+            </>
           )}
         </div>
       </div>

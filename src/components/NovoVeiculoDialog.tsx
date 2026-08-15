@@ -7,10 +7,21 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { Plus, Trash2 } from "lucide-react";
 import ClienteSelector from "@/components/ClienteSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { translateError } from "@/lib/supabase-errors";
 import type { CentroCusto } from "@/lib/db-types";
+
+interface DeducaoLinha {
+  id: string;
+  descricao: string;
+  valor: string;
+}
+
+function novaDeducao(descricao = ""): DeducaoLinha {
+  return { id: crypto.randomUUID(), descricao, valor: "" };
+}
 
 interface Props {
   open: boolean;
@@ -45,6 +56,18 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
   const [clienteCompraId, setClienteCompraId] = useState<string | null>(defaultValues?.cliente_compra_id ?? null);
   const [isConsignment, setIsConsignment] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [deducoes, setDeducoes] = useState<DeducaoLinha[]>([]);
+
+  function addDeducao(descricao = "") {
+    setDeducoes(d => [...d, novaDeducao(descricao)]);
+  }
+  function updateDeducao(id: string, field: keyof DeducaoLinha, value: string) {
+    setDeducoes(d => d.map(x => x.id === id ? { ...x, [field]: value } : x));
+  }
+  function removeDeducao(id: string) {
+    setDeducoes(d => d.filter(x => x.id !== id));
+  }
+  const totalDeducoes = deducoes.reduce((s, d) => s + (parseFloat(d.valor) || 0), 0);
 
   useEffect(() => {
     supabase.from("centros_custo").select("*").then(({ data }) => setCentros(data ?? []));
@@ -157,6 +180,25 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
       }
     }
 
+    // Deduções personalizadas (Saldo de Quitação, débitos avulsos, etc.)
+    for (const d of deducoes) {
+      const v = parseFloat(d.valor) || 0;
+      const desc = d.descricao.trim();
+      if (v > 0 && desc) {
+        txsToInsert.push({
+          descricao: `${desc} - ${form.placa.toUpperCase()}`,
+          valor: v,
+          tipo: "Despesa",
+          status: "Pendente",
+          data_vencimento: form.data_entrada_patio || new Date().toISOString().split("T")[0],
+          centro_custo_id: form.centro_custo_id || null,
+          veiculo_id: data?.id,
+          categoria: "Dedução",
+          user_id: user?.id,
+        });
+      }
+    }
+
     if (txsToInsert.length > 0) {
       await supabase.from("transacoes").insert(txsToInsert);
     }
@@ -170,7 +212,7 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
 
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{title ?? "Novo Veículo"}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
@@ -253,6 +295,57 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
             </div>
             <div><Label>Data Entrada Pátio</Label><Input type="date" value={form.data_entrada_patio} onChange={e => setForm({ ...form, data_entrada_patio: e.target.value })} /></div>
           </div>
+
+          {/* Bloco de deduções personalizadas — vira transação de despesa e aparece no contrato de compra */}
+          <div className="border rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-semibold text-sm">Outras Deduções</h4>
+                <p className="text-[11px] text-muted-foreground">Ex: Saldo de Quitação, débito na financeira, comissão. Cada uma vira uma despesa pendente vinculada ao veículo.</p>
+              </div>
+              <Button type="button" size="sm" variant="outline" onClick={() => addDeducao()} className="gap-1">
+                <Plus className="h-3 w-3" /> Adicionar
+              </Button>
+            </div>
+
+            {/* Atalhos rápidos */}
+            <div className="flex flex-wrap gap-1">
+              {["Saldo de Quitação", "Comissão", "Repasse a Terceiro", "Frete/Transporte"].map(sug => (
+                <Button key={sug} type="button" size="sm" variant="secondary" className="h-6 text-[11px]" onClick={() => addDeducao(sug)}>
+                  + {sug}
+                </Button>
+              ))}
+            </div>
+
+            {deducoes.length === 0 && (
+              <p className="text-xs text-muted-foreground italic py-1">Nenhuma dedução personalizada.</p>
+            )}
+
+            {deducoes.map(d => (
+              <div key={d.id} className="grid grid-cols-12 gap-2 items-end">
+                <div className="col-span-7">
+                  <Label className="text-xs">Descrição</Label>
+                  <Input className="h-8 text-sm" value={d.descricao} onChange={e => updateDeducao(d.id, "descricao", e.target.value)} placeholder="Ex: Saldo de Quitação Financeira XYZ" />
+                </div>
+                <div className="col-span-4">
+                  <Label className="text-xs">Valor (R$)</Label>
+                  <Input className="h-8 text-sm" type="number" step="0.01" value={d.valor} onChange={e => updateDeducao(d.id, "valor", e.target.value)} />
+                </div>
+                <div className="col-span-1 flex justify-center">
+                  <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => removeDeducao(d.id)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+
+            {totalDeducoes > 0 && (
+              <p className="text-xs text-right pt-1 border-t">
+                Total dessas deduções: <strong>R$ {totalDeducoes.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong>
+              </p>
+            )}
+          </div>
+
           <div className="flex items-center gap-2">
             <Switch checked={isConsignment} onCheckedChange={setIsConsignment} />
             <Label>Veículo Consignado</Label>
