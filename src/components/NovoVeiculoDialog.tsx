@@ -30,6 +30,11 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
     placa: "", marca_modelo: "", ano: "", ano_modelo: "", cor: "", renavam: "", chassi: "", combustivel: "",
     valor_aquisicao: defaultValues?.valor_aquisicao ?? "",
     debitos_veiculo: "",
+    ipva: "",
+    multas: "",
+    licenciamento: "",
+    desconto: "",
+    forma_pagamento: "",
     centro_custo_id: defaultValues?.centro_custo_id ?? "",
     data_entrada_patio: new Date().toISOString().split("T")[0],
   });
@@ -62,6 +67,11 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
       return;
     }
     setLoading(true);
+    const ipvaNum = parseFloat(form.ipva) || 0;
+    const multasNum = parseFloat(form.multas) || 0;
+    const licenciamentoNum = parseFloat(form.licenciamento) || 0;
+    const descontoNum = parseFloat(form.desconto) || 0;
+
     const { data, error } = await supabase.from("veiculos").insert({
       placa: form.placa.toUpperCase(),
       marca_modelo: form.marca_modelo.toUpperCase(),
@@ -72,6 +82,11 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
       chassi: form.chassi.toUpperCase() || null,
       combustivel: form.combustivel || null,
       valor_aquisicao: parseFloat(form.valor_aquisicao) || 0,
+      ipva: ipvaNum,
+      multas: multasNum,
+      licenciamento: licenciamentoNum,
+      desconto: descontoNum,
+      forma_pagamento: form.forma_pagamento || null,
       centro_custo_id: form.centro_custo_id || null,
       cliente_compra_id: clienteCompraId,
       is_consignment: isConsignment,
@@ -109,6 +124,27 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
         categoria: "Despesa de Veículo",
         user_id: user?.id,
       });
+    }
+
+    const extraDebts: [number, string, string][] = [
+      [ipvaNum, "IPVA", "IPVA"],
+      [multasNum, "Multas", "Multas"],
+      [licenciamentoNum, "Licenciamento", "Licenciamento"],
+    ];
+    for (const [valor, label, categoria] of extraDebts) {
+      if (valor > 0) {
+        txsToInsert.push({
+          descricao: `${label} - ${form.placa.toUpperCase()}`,
+          valor,
+          tipo: "Despesa",
+          status: "Pendente",
+          data_vencimento: form.data_entrada_patio || new Date().toISOString().split("T")[0],
+          centro_custo_id: form.centro_custo_id || null,
+          veiculo_id: data?.id,
+          categoria,
+          user_id: user?.id,
+        });
+      }
     }
 
     if (txsToInsert.length > 0) {
@@ -154,7 +190,27 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
               </Select>
             </div>
             <div><Label>Valor Aquisição (R$)</Label><Input type="number" step="0.01" value={form.valor_aquisicao} onChange={e => setForm({ ...form, valor_aquisicao: e.target.value })} required /></div>
-            <div><Label>Débitos do Veículo (R$)</Label><Input type="number" step="0.01" value={form.debitos_veiculo} onChange={e => setForm({ ...form, debitos_veiculo: e.target.value })} placeholder="Opcional" /></div>
+            <div><Label>Desconto (R$)</Label><Input type="number" step="0.01" value={form.desconto} onChange={e => setForm({ ...form, desconto: e.target.value })} placeholder="Opcional" /></div>
+            <div><Label>Débitos Gerais (R$)</Label><Input type="number" step="0.01" value={form.debitos_veiculo} onChange={e => setForm({ ...form, debitos_veiculo: e.target.value })} placeholder="Opcional" /></div>
+            <div><Label>IPVA (R$)</Label><Input type="number" step="0.01" value={form.ipva} onChange={e => setForm({ ...form, ipva: e.target.value })} placeholder="Opcional" /></div>
+            <div><Label>Multas (R$)</Label><Input type="number" step="0.01" value={form.multas} onChange={e => setForm({ ...form, multas: e.target.value })} placeholder="Opcional" /></div>
+            <div><Label>Licenciamento (R$)</Label><Input type="number" step="0.01" value={form.licenciamento} onChange={e => setForm({ ...form, licenciamento: e.target.value })} placeholder="Opcional" /></div>
+            <div>
+              <Label>Forma de Pagamento</Label>
+              <Select value={form.forma_pagamento} onValueChange={v => setForm({ ...form, forma_pagamento: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PIX">PIX</SelectItem>
+                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                  <SelectItem value="Transferência">Transferência</SelectItem>
+                  <SelectItem value="Cartão Débito">Cartão Débito</SelectItem>
+                  <SelectItem value="Cartão Crédito">Cartão Crédito</SelectItem>
+                  <SelectItem value="Cheque">Cheque</SelectItem>
+                  <SelectItem value="Financiamento Banco">Financiamento Banco</SelectItem>
+                  <SelectItem value="Veículo na Troca">Veículo na Troca</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label>Data Entrada Pátio</Label><Input type="date" value={form.data_entrada_patio} onChange={e => setForm({ ...form, data_entrada_patio: e.target.value })} /></div>
           </div>
           <div className="flex items-center gap-2">

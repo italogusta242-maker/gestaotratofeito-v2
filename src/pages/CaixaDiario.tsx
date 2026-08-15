@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft } from "lucide-react";
 import { format } from "date-fns";
-import { formatBRL } from "@/lib/format";
+import { formatBRL, parseDateLocal } from "@/lib/format";
 import type { Transacao, ContaBancaria, CentroCusto, Veiculo } from "@/lib/db-types";
 import { translateError } from "@/lib/supabase-errors";
 
@@ -200,7 +200,7 @@ export default function CaixaDiario() {
                       {tx.centros_custo?.nome && <Badge variant="outline" className="text-[10px]">{tx.centros_custo.nome}</Badge>}
                       {tx.contas_bancarias?.nome && <Badge variant="secondary" className="text-[10px]">{tx.contas_bancarias.nome}</Badge>}
                       {tx.parcela_atual && <span className="text-[10px] text-muted-foreground">{tx.parcela_atual}/{tx.total_parcelas}</span>}
-                      {periodo === "Mês" && <span className="text-[10px] text-muted-foreground">{format(new Date(tx.data_vencimento), "dd/MM")}</span>}
+                      {periodo === "Mês" && <span className="text-[10px] text-muted-foreground">{format(parseDateLocal(tx.data_vencimento) ?? new Date(), "dd/MM")}</span>}
                     </div>
                   </div>
                   <span className={`font-semibold text-sm whitespace-nowrap ${tx.tipo === "Receita" ? "text-emerald-500" : tx.tipo === "Despesa" ? "text-destructive" : "text-primary"}`}>
@@ -230,7 +230,7 @@ export default function CaixaDiario() {
                       {tx.centros_custo?.nome && <Badge variant="outline" className="text-[10px]">{tx.centros_custo.nome}</Badge>}
                       <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-600 bg-amber-500/5">{tx.status}</Badge>
                       {tx.parcela_atual && <span className="text-[10px] text-muted-foreground">{tx.parcela_atual}/{tx.total_parcelas}</span>}
-                      {periodo === "Mês" && <span className="text-[10px] text-muted-foreground">{format(new Date(tx.data_vencimento), "dd/MM")}</span>}
+                      {periodo === "Mês" && <span className="text-[10px] text-muted-foreground">{format(parseDateLocal(tx.data_vencimento) ?? new Date(), "dd/MM")}</span>}
                     </div>
                   </div>
                   <span className={`font-semibold text-sm whitespace-nowrap ${tx.tipo === "Receita" ? "text-emerald-500" : tx.tipo === "Despesa" ? "text-destructive" : "text-primary"}`}>

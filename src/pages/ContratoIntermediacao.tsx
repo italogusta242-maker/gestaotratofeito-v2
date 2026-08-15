@@ -6,6 +6,7 @@ import { Printer, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import logo from "@/assets/logo-trato-feito.png";
+import { EMPRESA } from "@/lib/empresa";
 import type { Veiculo, Cliente } from "@/lib/db-types";
 
 export default function ContratoIntermediacao() {
@@ -127,7 +128,7 @@ export default function ContratoIntermediacao() {
         {/* CONTRATADA */}
         <section className="mb-4">
           <h3 className="font-bold text-xs uppercase mb-2">CONTRATADA:</h3>
-          <p>MEU CARRO ON-LINE LIMITADA, CNPJ 58.728.871/0001-06, QS 1 RUA 210 LOTES LOTE 34/36, SALA 1106 ED.LED OFFICE, ÁGUAS CLARAS BRASÍLIA DF, CEP 71950-770.</p>
+          <p>{EMPRESA.razaoSocial}, CNPJ {EMPRESA.cnpj}, {EMPRESA.enderecoCompleto}.</p>
         </section>
 
         {/* DADOS DO VEÍCULO */}

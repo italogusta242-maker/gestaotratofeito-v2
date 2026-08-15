@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseDateLocal } from "@/lib/format";
 import type { Veiculo, Cliente } from "@/lib/db-types";
 
 export default function Procuracao() {
@@ -31,7 +32,8 @@ export default function Procuracao() {
     const nome = outorgante?.nome || "_________________________________";
     const nacionalidade = outorgante?.nacionalidade || "brasileira";
     const estadoCivil = outorgante?.estado_civil || "___________________";
-    const dataNasc = outorgante?.data_nascimento ? format(new Date(outorgante.data_nascimento), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : "___/___/_____";
+    const dataNascDate = parseDateLocal(outorgante?.data_nascimento);
+    const dataNasc = dataNascDate ? format(dataNascDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : "___/___/_____";
     const rg = outorgante?.rg || "___________________";
     const cpfCnpj = outorgante?.cpf_cnpj || "___________________";
     const endereco = outorgante?.endereco || "______________________________________________________";

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import ClienteSelector from "@/components/ClienteSelector";
 import NovoVeiculoDialog from "@/components/NovoVeiculoDialog";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, AlertCircle } from "lucide-react";
 import { translateError } from "@/lib/supabase-errors";
 import { validateVenda } from "@/lib/venda-validation";
 import type { Veiculo, ContaBancaria } from "@/lib/db-types";
@@ -33,6 +34,7 @@ function novaLinha(): PagamentoLinha {
 export default function VendaDialog({ veiculo, onClose }: Props) {
   const { user } = useAuth();
   const [contas, setContas] = useState<ContaBancaria[]>([]);
+  const [contasLoaded, setContasLoaded] = useState(false);
   const [valorVenda, setValorVenda] = useState("");
   const [pagamentos, setPagamentos] = useState<PagamentoLinha[]>([novaLinha()]);
   const [loading, setLoading] = useState(false);
@@ -46,8 +48,14 @@ export default function VendaDialog({ veiculo, onClose }: Props) {
   const [transacoesCriadas, setTransacoesCriadas] = useState<string[]>([]);
 
   useEffect(() => {
-    supabase.from("contas_bancarias").select("*").then(({ data }) => setContas(data ?? []));
+    supabase.from("contas_bancarias").select("*").then(({ data }) => {
+      setContas(data ?? []);
+      setContasLoaded(true);
+    });
   }, []);
+
+  const precisaConta = pagamentos.some(p => p.forma !== "Veículo na Troca");
+  const semContas = contasLoaded && contas.length === 0 && precisaConta;
 
   const totalPagamentos = pagamentos.reduce((s, p) => s + (parseFloat(p.valor) || 0), 0);
   const vendaNum = parseFloat(valorVenda) || 0;
@@ -105,41 +113,50 @@ export default function VendaDialog({ veiculo, onClose }: Props) {
       });
     }
 
-    const { data: insertedTx, error: txError } = await supabase.from("transacoes").insert(transacoes).select("id");
-    if (txError) {
-      toast.error(translateError(txError));
+    try {
+      const { data: insertedTx, error: txError } = await supabase.from("transacoes").insert(transacoes).select("id");
+      if (txError) {
+        toast.error(translateError(txError));
+        setLoading(false);
+        return;
+      }
+
+      // 2. Marca veículo como Vendido. Se falhar, faz rollback das transações.
+      const { error: veicError } = await supabase
+        .from("veiculos")
+        .update({ status: "Vendido", cliente_venda_id: clienteVendaId })
+        .eq("id", veiculo.id);
+
+      if (veicError) {
+        // rollback transações criadas
+        const ids = insertedTx?.map((t) => t.id) ?? [];
+        if (ids.length > 0) await supabase.from("transacoes").delete().in("id", ids);
+        toast.error("Não foi possível marcar o veículo como vendido: " + translateError(veicError));
+        setLoading(false);
+        return;
+      }
+
+      // 3. Trade-in flow
+      if (hasTradeIn) {
+        setTransacoesCriadas(insertedTx?.map((t) => t.id) ?? []);
+        setTradeInPagamentos(tradeInLinhas);
+        setCurrentTradeInIdx(0);
+        setVendaConfirmada(true);
+        setShowNovoVeiculo(true);
+        toast.success("Venda registrada! Agora cadastre o(s) veículo(s) recebido(s) na troca.");
+      } else {
+        toast.success("Venda registrada com sucesso!");
+        onClose();
+      }
+    } catch (err) {
+      // Erro de rede/fetch (offline, timeout, extensão bloqueou). Não passa pelo error do supabase-js.
+      const msg = err instanceof TypeError
+        ? "Sem conexão com o servidor. Verifique sua internet ou extensões do navegador (adblock/VPN) e tente novamente."
+        : `Erro inesperado: ${err instanceof Error ? err.message : String(err)}`;
+      toast.error(msg);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // 2. Marca veículo como Vendido. Se falhar, faz rollback das transações.
-    const { error: veicError } = await supabase
-      .from("veiculos")
-      .update({ status: "Vendido", cliente_venda_id: clienteVendaId })
-      .eq("id", veiculo.id);
-
-    if (veicError) {
-      // rollback transações criadas
-      const ids = insertedTx?.map((t) => t.id) ?? [];
-      if (ids.length > 0) await supabase.from("transacoes").delete().in("id", ids);
-      toast.error("Não foi possível marcar o veículo como vendido: " + translateError(veicError));
-      setLoading(false);
-      return;
-    }
-
-    // 3. Trade-in flow
-    if (hasTradeIn) {
-      setTransacoesCriadas(insertedTx?.map((t) => t.id) ?? []);
-      setTradeInPagamentos(tradeInLinhas);
-      setCurrentTradeInIdx(0);
-      setVendaConfirmada(true);
-      setShowNovoVeiculo(true);
-      toast.success("Venda registrada! Agora cadastre o(s) veículo(s) recebido(s) na troca.");
-    } else {
-      toast.success("Venda registrada com sucesso!");
-      onClose();
-    }
-    setLoading(false);
   }
 
   function handleVeiculoCadastrado(veiculoId?: string) {
@@ -170,6 +187,20 @@ export default function VendaDialog({ veiculo, onClose }: Props) {
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Vender — {veiculo.placa}</DialogTitle></DialogHeader>
           <form onSubmit={handleVenda} className="space-y-4">
+            {semContas && (
+              <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold text-destructive">Nenhuma conta bancária cadastrada</p>
+                  <p className="text-muted-foreground text-xs mt-0.5">
+                    Toda forma de pagamento (exceto "Veículo na Troca") precisa de uma conta destino.{" "}
+                    <Link to="/contas" className="underline font-medium text-destructive" onClick={onClose}>
+                      Cadastrar conta agora
+                    </Link>
+                  </p>
+                </div>
+              </div>
+            )}
             <ClienteSelector label="Comprador (Cliente)" value={clienteVendaId} onChange={setClienteVendaId} />
             <div><Label>Valor Total de Venda (R$)</Label><Input type="number" step="0.01" value={valorVenda} onChange={(e) => setValorVenda(e.target.value)} required /></div>
 
@@ -197,9 +228,11 @@ export default function VendaDialog({ veiculo, onClose }: Props) {
                   </div>
                   {p.forma !== "Veículo na Troca" ? (
                     <div className="col-span-3">
-                      <Label className="text-xs">Conta Destino</Label>
-                      <Select value={p.contaId} onValueChange={(v) => updateLinha(p.id, "contaId", v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Conta" /></SelectTrigger>
+                      <Label className="text-xs">Conta Destino {contas.length > 0 && <span className="text-destructive">*</span>}</Label>
+                      <Select value={p.contaId} onValueChange={(v) => updateLinha(p.id, "contaId", v)} disabled={contas.length === 0}>
+                        <SelectTrigger className={`h-9 ${!p.contaId && contas.length > 0 ? "border-destructive/40" : ""}`}>
+                          <SelectValue placeholder={contas.length === 0 ? "Sem contas" : "Selecione"} />
+                        </SelectTrigger>
                         <SelectContent>{contas.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>

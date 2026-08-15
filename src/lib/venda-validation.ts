@@ -40,7 +40,7 @@ export function validateVenda(valorVenda: string, pagamentos: PagamentoLinha[]):
       return { ok: false, error: "Toda linha de pagamento precisa ter um valor maior que zero." };
     }
     if (p.forma !== "Veículo na Troca" && !p.contaId) {
-      return { ok: false, error: `Selecione a conta de destino para o pagamento em ${p.forma}.` };
+      return { ok: false, error: `Selecione a conta de destino para o pagamento em ${p.forma}. Se não houver contas cadastradas, cadastre uma em "Contas Bancárias".` };
     }
   }
 

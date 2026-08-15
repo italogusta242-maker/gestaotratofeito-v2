@@ -158,7 +158,7 @@ export default function ContasBancarias() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Corrente">Corrente</SelectItem>
-                      <SelectItem value="Cartão">Cartão</SelectItem>
+                      <SelectItem value="Poupança">Poupança</SelectItem>
                       <SelectItem value="Espécie">Espécie</SelectItem>
                     </SelectContent>
                   </Select>

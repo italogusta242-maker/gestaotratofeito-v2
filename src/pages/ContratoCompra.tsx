@@ -6,6 +6,8 @@ import { Printer, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatBRL } from "@/lib/format";
+import { EMPRESA } from "@/lib/empresa";
+import logoTratoFeito from "@/assets/logo-trato-feito.png";
 import type { Veiculo, Cliente, Transacao } from "@/lib/db-types";
 
 export default function ContratoCompra() {
@@ -68,10 +70,11 @@ export default function ContratoCompra() {
 
       <div className="max-w-[210mm] mx-auto px-12 py-10 print:px-0 print:py-0 print:max-w-none text-[13px] leading-relaxed font-serif">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-lg font-bold uppercase tracking-wide">MEU CARRO ON-LINE LIMITADA</h1>
-          <p className="text-xs text-gray-600">CNPJ: 58.728.871/0001-06</p>
-          <p className="text-xs text-gray-600">QS 1 RUA 210 LOTES 34/36, SALA 1106 ED. LED OFFICE – ÁGUAS CLARAS – BRASÍLIA/DF – CEP 71950-770</p>
+        <div className="text-center mb-6">
+          <img src={logoTratoFeito} alt="Trato Feito Seminovos" className="mx-auto h-20 mb-2" />
+          <h1 className="text-lg font-bold uppercase tracking-wide">{EMPRESA.razaoSocial}</h1>
+          <p className="text-xs text-gray-600">CNPJ: {EMPRESA.cnpj}</p>
+          <p className="text-xs text-gray-600">{EMPRESA.enderecoCompleto}</p>
           <hr className="mt-4 border-black" />
           <h2 className="text-sm font-bold mt-4 uppercase">
             Instrumento Particular de Aceite de Proposta de Compra de Veículo Mediante Intermediação
@@ -84,7 +87,7 @@ export default function ContratoCompra() {
 
           <div className="mb-4">
             <p className="font-bold">CONTRATADA:</p>
-            <p>MEU CARRO ON-LINE LIMITADA, CNPJ 58.728.871/0001-06, QS 1 RUA 210 LOTES 34/36, SALA 1106 ED. LED OFFICE, ÁGUAS CLARAS – BRASÍLIA/DF, CEP 71950-770.</p>
+            <p>{EMPRESA.razaoSocial}, CNPJ {EMPRESA.cnpj}, {EMPRESA.enderecoCompleto}.</p>
           </div>
 
           <div>
@@ -210,8 +213,8 @@ export default function ContratoCompra() {
           <div className="grid grid-cols-2 gap-16 mt-16">
             <div className="text-center">
               <div className="border-t border-black pt-2 mx-4">
-                <p className="font-bold">MEU CARRO ONLINE LTDA</p>
-                <p className="text-xs text-gray-600">CNPJ: 58.728.871/0001-06</p>
+                <p className="font-bold">{EMPRESA.razaoSocial}</p>
+                <p className="text-xs text-gray-600">CNPJ: {EMPRESA.cnpj}</p>
               </div>
             </div>
             <div className="text-center">

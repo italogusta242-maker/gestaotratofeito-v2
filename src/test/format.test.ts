@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatBRL, formatDateBR, upperCase } from "@/lib/format";
+import { formatBRL, formatDateBR, parseDateLocal, upperCase } from "@/lib/format";
 import { formatPlaca, cleanPlaca } from "@/lib/format-placa";
 
 describe("formatBRL", () => {
@@ -41,6 +41,33 @@ describe("formatDateBR", () => {
 
   it("retorna original se não for formato esperado", () => {
     expect(formatDateBR("2026-07")).toBe("2026-07");
+  });
+});
+
+describe("parseDateLocal", () => {
+  it("retorna Date local sem off-by-one em fuso UTC-negativo", () => {
+    const d = parseDateLocal("2000-01-15");
+    expect(d).not.toBeNull();
+    expect(d!.getFullYear()).toBe(2000);
+    expect(d!.getMonth()).toBe(0); // janeiro = 0
+    expect(d!.getDate()).toBe(15);
+  });
+
+  it("aceita timestamp ISO (ignora hora)", () => {
+    const d = parseDateLocal("2026-07-30T12:00:00Z");
+    expect(d!.getDate()).toBe(30);
+    expect(d!.getMonth()).toBe(6);
+  });
+
+  it("retorna null para vazio", () => {
+    expect(parseDateLocal(null)).toBeNull();
+    expect(parseDateLocal(undefined)).toBeNull();
+    expect(parseDateLocal("")).toBeNull();
+  });
+
+  it("retorna null para formato inválido", () => {
+    expect(parseDateLocal("2026-07")).toBeNull();
+    expect(parseDateLocal("qualquer coisa")).toBeNull();
   });
 });
 
