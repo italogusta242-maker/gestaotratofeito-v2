@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -312,6 +312,36 @@ export default function VeiculoDetalhe() {
           });
         }
       }
+
+      // Recalcula a transação "Custo de Veículo" = valor_aquisicao − soma(deduções válidas).
+      // Deduções são embutidas no valor de compra: o vendedor recebe o líquido.
+      const valorAquisicao = Number(editForm.valor_aquisicao) || 0;
+      const totalDeducoes = editDeducoes.reduce(
+        (s, d) => s + (d.valor > 0 && d.descricao.trim() ? d.valor : 0),
+        0,
+      );
+      const liquidoAoVendedor = Math.max(0, valorAquisicao - totalDeducoes);
+      const txCustoExistente = transacoes.find(t => t.categoria === "Custo de Veículo" && t.tipo === "Despesa");
+      const descCusto = `Compra de Veículo - ${placaUpper}`;
+      if (txCustoExistente) {
+        if (liquidoAoVendedor > 0) {
+          await supabase.from("transacoes").update({ descricao: descCusto, valor: liquidoAoVendedor }).eq("id", txCustoExistente.id);
+        } else {
+          await supabase.from("transacoes").delete().eq("id", txCustoExistente.id);
+        }
+      } else if (liquidoAoVendedor > 0) {
+        await supabase.from("transacoes").insert({
+          descricao: descCusto,
+          valor: liquidoAoVendedor,
+          tipo: "Despesa",
+          status: "Pendente",
+          data_vencimento: dataVenc,
+          centro_custo_id: centroId,
+          veiculo_id: id,
+          categoria: "Custo de Veículo",
+          user_id: user?.id,
+        });
+      }
     } catch (err) {
       console.error("sync deduções:", err);
       toast.error("Veículo atualizado, mas houve erro ao sincronizar deduções.");
@@ -331,7 +361,12 @@ export default function VeiculoDetalhe() {
   }
 
   const custoCompra = Number(veiculo.valor_aquisicao);
-  const despesas = transacoes.filter(t => t.tipo === "Despesa").reduce((s, t) => s + Number(t.valor), 0);
+  // "Custo de Veículo" e "Dedução" (e legacy) compõem o valor de aquisição embutido —
+  // filtrar para o Custo Total não duplicar o bruto.
+  const CATS_EMBUTIDAS_NO_BRUTO = ["Custo de Veículo", "Dedução", "IPVA", "Multas", "Licenciamento", "Despesa de Veículo"];
+  const despesas = transacoes
+    .filter(t => t.tipo === "Despesa" && !CATS_EMBUTIDAS_NO_BRUTO.includes(t.categoria ?? ""))
+    .reduce((s, t) => s + Number(t.valor), 0);
   const receitas = transacoes.filter(t => t.tipo === "Receita").reduce((s, t) => s + Number(t.valor), 0);
   const custoTotal = custoCompra + despesas;
   const lucro = receitas - custoTotal;
@@ -458,9 +493,9 @@ export default function VeiculoDetalhe() {
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-xs text-muted-foreground mb-1">Despesas</p>
+              <p className="text-xs text-muted-foreground mb-1">Despesas Extras</p>
               <p className="text-xl font-bold">{formatBRL(despesas)}</p>
-              <p className="text-xs text-muted-foreground">{transacoes.filter(t => t.tipo === "Despesa").length} lançamento(s)</p>
+              <p className="text-[10px] text-muted-foreground">{transacoes.filter(t => t.tipo === "Despesa" && !CATS_EMBUTIDAS_NO_BRUTO.includes(t.categoria ?? "")).length} lançamento(s) • fora da compra</p>
             </CardContent>
           </Card>
           <Card className="border-primary/20">
@@ -483,9 +518,9 @@ export default function VeiculoDetalhe() {
       )}
 
       {/* Resumo por Categoria */}
-      {!isEmissao && transacoes.filter(t => t.tipo === "Despesa").length > 0 && (() => {
+      {!isEmissao && transacoes.filter(t => t.tipo === "Despesa" && !CATS_EMBUTIDAS_NO_BRUTO.includes(t.categoria ?? "")).length > 0 && (() => {
         const despesasPorCategoria = transacoes
-          .filter(t => t.tipo === "Despesa")
+          .filter(t => t.tipo === "Despesa" && !CATS_EMBUTIDAS_NO_BRUTO.includes(t.categoria ?? ""))
           .reduce((acc, t) => {
             const cat = t.categoria || "Sem categoria";
             acc[cat] = (acc[cat] || 0) + Number(t.valor);
@@ -533,28 +568,109 @@ export default function VeiculoDetalhe() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-              {transacoes.filter(t => t.tipo === "Despesa").map(tx => (
-                  <TableRow key={tx.id}>
-                    <TableCell className="font-medium">{tx.descricao}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">{tx.categoria || tx.tipo}</Badge>
-                    </TableCell>
-                    <TableCell className={tx.tipo === "Receita" ? "text-emerald-600 font-medium" : "font-medium"}>
-                      {formatBRL(Number(tx.valor))}
-                    </TableCell>
-                    <TableCell>{format(new Date(tx.created_at), "dd/MM/yyyy")}</TableCell>
-                    {canWrite && (
-                      <TableCell>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDeleteTransacao(tx.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-                {transacoes.filter(t => t.tipo === "Despesa").length === 0 && (
-                  <TableRow><TableCell colSpan={canWrite ? 5 : 4} className="text-center text-muted-foreground py-8">Nenhuma despesa vinculada.</TableCell></TableRow>
-                )}
+                {(() => {
+                  const despesasTx = transacoes.filter(t => t.tipo === "Despesa");
+                  const custoVeiculo = despesasTx.filter(t => t.categoria === "Custo de Veículo");
+                  const deducoesTx = despesasTx.filter(t => ["Dedução", "IPVA", "Multas", "Licenciamento", "Despesa de Veículo"].includes(t.categoria ?? ""));
+                  const outras = despesasTx.filter(t => !CATS_EMBUTIDAS_NO_BRUTO.includes(t.categoria ?? ""));
+                  const totalDeducoes = deducoesTx.reduce((s, d) => s + Number(d.valor), 0);
+                  const colCount = canWrite ? 5 : 4;
+
+                  if (despesasTx.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={colCount} className="text-center text-muted-foreground py-8">
+                          Nenhuma despesa vinculada.
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+
+                  return (
+                    <>
+                      {custoVeiculo.map(tx => (
+                        <React.Fragment key={tx.id}>
+                          <TableRow className="border-b-0">
+                            <TableCell className="font-medium">{tx.descricao}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">{tx.categoria}</Badge>
+                            </TableCell>
+                            <TableCell className="font-medium">{formatBRL(Number(tx.valor))}</TableCell>
+                            <TableCell>{format(new Date(tx.created_at), "dd/MM/yyyy")}</TableCell>
+                            {canWrite && (
+                              <TableCell>
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDeleteTransacao(tx.id)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                          {deducoesTx.length > 0 && (
+                            <TableRow className="bg-muted/30 hover:bg-muted/30">
+                              <TableCell colSpan={colCount} className="py-2 px-4">
+                                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                                  Deduções abatidas do valor bruto ({formatBRL(Number(tx.valor) + totalDeducoes)})
+                                </div>
+                                <div className="space-y-1">
+                                  {deducoesTx.map(d => (
+                                    <div key={d.id} className="flex items-center justify-between text-sm border-l-2 border-muted-foreground/30 pl-3 py-1">
+                                      <span className="text-muted-foreground">
+                                        <span className="mr-1.5">•</span>{d.descricao}
+                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium text-foreground">{formatBRL(Number(d.valor))}</span>
+                                        {canWrite && (
+                                          <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => handleDeleteTransacao(d.id)}>
+                                            <Trash2 className="h-3 w-3" />
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                  <div className="flex items-center justify-between text-xs pt-1 mt-1 border-t border-muted-foreground/20">
+                                    <span className="text-muted-foreground italic">Líquido pago ao vendedor</span>
+                                    <span className="font-semibold">{formatBRL(Number(tx.valor))}</span>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      ))}
+                      {/* Deduções órfãs (sem transação "Custo de Veículo" pai — retrocompatibilidade) */}
+                      {custoVeiculo.length === 0 && deducoesTx.map(d => (
+                        <TableRow key={d.id}>
+                          <TableCell className="font-medium">{d.descricao}</TableCell>
+                          <TableCell><Badge variant="outline" className="text-xs">{d.categoria}</Badge></TableCell>
+                          <TableCell className="font-medium">{formatBRL(Number(d.valor))}</TableCell>
+                          <TableCell>{format(new Date(d.created_at), "dd/MM/yyyy")}</TableCell>
+                          {canWrite && (
+                            <TableCell>
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDeleteTransacao(d.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                      {outras.map(tx => (
+                        <TableRow key={tx.id}>
+                          <TableCell className="font-medium">{tx.descricao}</TableCell>
+                          <TableCell><Badge variant="outline" className="text-xs">{tx.categoria || tx.tipo}</Badge></TableCell>
+                          <TableCell className="font-medium">{formatBRL(Number(tx.valor))}</TableCell>
+                          <TableCell>{format(new Date(tx.created_at), "dd/MM/yyyy")}</TableCell>
+                          {canWrite && (
+                            <TableCell>
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDeleteTransacao(tx.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </>
+                  );
+                })()}
               </TableBody>
             </Table>
           </CardContent>

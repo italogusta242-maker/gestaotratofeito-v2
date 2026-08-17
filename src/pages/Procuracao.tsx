@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Printer, ArrowLeft } from "lucide-react";
+import { Printer, ArrowLeft, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseDateLocal } from "@/lib/format";
+import { saveElementAsPdf } from "@/lib/pdf";
+import { toast } from "sonner";
 import type { Veiculo, Cliente } from "@/lib/db-types";
 
 export default function Procuracao() {
@@ -16,6 +18,23 @@ export default function Procuracao() {
 
     const [veiculo, setVeiculo] = useState<Veiculo | null>(null);
     const [outorgante, setOutorgante] = useState<Cliente | null>(null);
+    const [salvando, setSalvando] = useState(false);
+    const conteudoRef = useRef<HTMLDivElement>(null);
+
+    async function handleSalvarPdf() {
+        if (!conteudoRef.current || !veiculo) return;
+        setSalvando(true);
+        try {
+            const nomeArquivo = `Procuracao_${veiculo.placa}_${format(new Date(), "yyyy-MM-dd")}.pdf`;
+            await saveElementAsPdf(conteudoRef.current, nomeArquivo);
+            toast.success("PDF salvo!");
+        } catch (err) {
+            console.error("Erro ao gerar PDF:", err);
+            toast.error("Não foi possível gerar o PDF");
+        } finally {
+            setSalvando(false);
+        }
+    }
 
     useEffect(() => {
         if (!id) return;
@@ -53,10 +72,13 @@ export default function Procuracao() {
                 <Button onClick={() => navigate(`/veiculos/${id}/detalhe`)} variant="outline" className="gap-1">
                     <ArrowLeft className="h-4 w-4" /> Voltar
                 </Button>
-                <Button onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir Procuração</Button>
+                <Button onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir</Button>
+                <Button onClick={handleSalvarPdf} disabled={salvando} variant="secondary">
+                    <Download className="h-4 w-4 mr-1" /> {salvando ? "Salvando..." : "Salvar PDF"}
+                </Button>
             </div>
 
-            <div className="text-black bg-white" style={{ fontFamily: "Times New Roman, serif", lineHeight: 1.8, fontSize: "16px" }}>
+            <div ref={conteudoRef} className="text-black bg-white" style={{ fontFamily: "Times New Roman, serif", lineHeight: 1.8, fontSize: "16px" }}>
                 <h1 className="text-2xl font-bold text-center mb-2 uppercase">INSTRUMENTO DE PROCURAÇÃO</h1>
                 <p className="text-center mb-10 text-lg">PROCURAÇÃO bastante que faz: <strong>{nome.toUpperCase()}</strong></p>
 

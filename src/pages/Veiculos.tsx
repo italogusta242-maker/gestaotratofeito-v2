@@ -248,7 +248,7 @@ export default function Veiculos() {
                           onClick={() => navigate(`/veiculos/${v.id}/detalhe`)}
                         >
                           <div className="flex items-center justify-between">
-                            <span className="font-mono font-bold text-xs">{formatPlaca(v.placa)}</span>
+                            <span className="font-bold text-xs tracking-wider">{formatPlaca(v.placa)}</span>
                             {v.is_consignment && (
                               <Badge variant="outline" className="text-[9px] h-3.5 px-1 border-purple-500/30 text-purple-600">C</Badge>
                             )}
@@ -325,7 +325,7 @@ export default function Veiculos() {
             <TableBody>
               {filtered.map(v => (
                 <TableRow key={v.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/veiculos/${v.id}/detalhe`)}>
-                  <TableCell className="font-mono font-bold text-sm">{formatPlaca(v.placa)}</TableCell>
+                  <TableCell className="font-bold text-sm tracking-wider">{formatPlaca(v.placa)}</TableCell>
                   <TableCell className="text-sm max-w-[150px] truncate" title={v.marca_modelo}>{v.marca_modelo}</TableCell>
                   <TableCell className="text-sm">{v.ano}{(v.ano_modelo && v.ano_modelo !== v.ano) ? `/${v.ano_modelo.slice(-2)}` : ""}</TableCell>
                   <TableCell><StatusBadge status={v.status} /></TableCell>

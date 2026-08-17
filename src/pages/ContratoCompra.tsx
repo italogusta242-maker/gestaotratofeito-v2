@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Printer, ArrowLeft } from "lucide-react";
+import { Printer, ArrowLeft, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
 import { EMPRESA } from "@/lib/empresa";
+import { saveElementAsPdf } from "@/lib/pdf";
 import logoTratoFeito from "@/assets/logo-trato-feito.png";
 import type { Veiculo, Cliente, Transacao } from "@/lib/db-types";
 
@@ -17,6 +19,23 @@ export default function ContratoCompra() {
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [despesas, setDespesas] = useState<Transacao[]>([]);
   const [loading, setLoading] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const conteudoRef = useRef<HTMLDivElement>(null);
+
+  async function handleSalvarPdf() {
+    if (!conteudoRef.current || !veiculo) return;
+    setSalvando(true);
+    try {
+      const nomeArquivo = `ContratoCompra_${veiculo.placa}_${format(new Date(), "yyyy-MM-dd")}.pdf`;
+      await saveElementAsPdf(conteudoRef.current, nomeArquivo);
+      toast.success("PDF salvo!");
+    } catch (err) {
+      console.error("Erro ao gerar PDF:", err);
+      toast.error("Não foi possível gerar o PDF");
+    } finally {
+      setSalvando(false);
+    }
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -41,7 +60,8 @@ export default function ContratoCompra() {
         .from("transacoes")
         .select("*")
         .eq("veiculo_id", id)
-        .eq("tipo", "Despesa");
+        .eq("tipo", "Despesa")
+        .in("categoria", ["Dedução", "IPVA", "Multas", "Licenciamento", "Despesa de Veículo"]);
       setDespesas(txs ?? []);
 
       setLoading(false);
@@ -66,9 +86,12 @@ export default function ContratoCompra() {
         <Button onClick={() => window.print()} className="gap-2 bg-black text-white hover:bg-gray-800">
           <Printer className="h-4 w-4" /> Imprimir
         </Button>
+        <Button onClick={handleSalvarPdf} disabled={salvando} variant="secondary" className="gap-2">
+          <Download className="h-4 w-4" /> {salvando ? "Salvando..." : "Salvar PDF"}
+        </Button>
       </div>
 
-      <div className="max-w-[210mm] mx-auto px-12 py-10 print:px-0 print:py-0 print:max-w-none text-[13px] leading-relaxed font-serif">
+      <div ref={conteudoRef} className="max-w-[210mm] mx-auto px-12 py-10 print:px-0 print:py-0 print:max-w-none text-[13px] leading-relaxed font-serif">
         {/* Header */}
         <div className="text-center mb-6">
           <img src={logoTratoFeito} alt="Trato Feito Seminovos" className="mx-auto h-20 mb-2" />

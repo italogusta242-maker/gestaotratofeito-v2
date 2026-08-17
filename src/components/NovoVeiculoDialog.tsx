@@ -132,10 +132,19 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
 
     const txsToInsert = [];
 
-    if (form.valor_aquisicao > 0) {
+    // Deduções são embutidas no valor de aquisição: o vendedor recebe o líquido
+    // (bruto − deduções) e a loja paga as deduções direto a terceiros. Assim o
+    // custo total do veículo (soma das despesas geradas) permanece igual ao bruto.
+    const totalDeducoesValidas = deducoes.reduce(
+      (s, d) => s + (d.valor > 0 && d.descricao.trim() ? d.valor : 0),
+      0,
+    );
+    const liquidoAoVendedor = Math.max(0, form.valor_aquisicao - totalDeducoesValidas);
+
+    if (liquidoAoVendedor > 0) {
       txsToInsert.push({
         descricao: `Compra de Veículo - ${form.placa.toUpperCase()}`,
-        valor: form.valor_aquisicao,
+        valor: liquidoAoVendedor,
         tipo: "Despesa",
         status: "Pendente",
         data_vencimento: form.data_entrada_patio || new Date().toISOString().split("T")[0],

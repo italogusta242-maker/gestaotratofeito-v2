@@ -27,3 +27,10 @@ dist-ssr
 *.sw?
 .vercel
 .env*
+
+# Playwright / testes E2E (contém credenciais hardcoded — só local)
+e2e/
+test-results/
+playwright-report/
+e2e-screenshots/
+playwright.config.ts
