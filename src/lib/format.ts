@@ -23,3 +23,26 @@ export const parseDateLocal = (iso: string | null | undefined): Date | null => {
 };
 
 export const upperCase = (v: string): string => v.toUpperCase();
+
+/**
+ * Monta o endereço completo do cliente juntando as partes preenchidas no
+ * cadastro. Contratos e procurações mostravam só `endereco`, deixando bairro
+ * e CEP fora do documento mesmo quando estavam salvos.
+ */
+type EnderecoLike = {
+  endereco?: string | null;
+  bairro?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  cep?: string | null;
+};
+export const enderecoCompleto = (c: EnderecoLike | null | undefined): string => {
+  if (!c) return "";
+  const partes: string[] = [];
+  if (c.endereco?.trim()) partes.push(c.endereco.trim());
+  if (c.bairro?.trim()) partes.push(c.bairro.trim());
+  const local = [c.cidade?.trim(), c.uf?.trim()].filter(Boolean).join("/");
+  if (local) partes.push(local);
+  if (c.cep?.trim()) partes.push(`CEP ${c.cep.trim()}`);
+  return partes.join(", ");
+};

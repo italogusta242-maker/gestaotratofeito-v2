@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { parseDateLocal } from "@/lib/format";
+import { enderecoCompleto, parseDateLocal } from "@/lib/format";
 import { saveElementAsPdf } from "@/lib/pdf";
 import { toast } from "sonner";
 import type { Veiculo, Cliente } from "@/lib/db-types";
@@ -55,7 +55,7 @@ export default function Procuracao() {
     const dataNasc = dataNascDate ? format(dataNascDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : "___/___/_____";
     const rg = outorgante?.rg || "___________________";
     const cpfCnpj = outorgante?.cpf_cnpj || "___________________";
-    const endereco = outorgante?.endereco || "______________________________________________________";
+    const endereco = enderecoCompleto(outorgante) || "______________________________________________________";
 
     const hoje = new Date();
     const dataExtenso = format(hoje, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });

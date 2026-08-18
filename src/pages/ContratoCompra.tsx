@@ -6,7 +6,7 @@ import { Printer, ArrowLeft, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
-import { formatBRL } from "@/lib/format";
+import { enderecoCompleto, formatBRL } from "@/lib/format";
 import { EMPRESA } from "@/lib/empresa";
 import { saveElementAsPdf } from "@/lib/pdf";
 import logoTratoFeito from "@/assets/logo-trato-feito.png";
@@ -118,7 +118,7 @@ export default function ContratoCompra() {
             <div className="grid grid-cols-2 gap-x-8 gap-y-1 mt-2 border border-black p-3">
               <div><span className="font-semibold">Nome/Razão Social:</span> {cliente?.nome ?? "___________________________"}</div>
               <div><span className="font-semibold">CPF/CNPJ:</span> {cliente?.cpf_cnpj ?? "___________________________"}</div>
-              <div className="col-span-2"><span className="font-semibold">Endereço:</span> {cliente?.endereco ?? "___________________________"}</div>
+              <div className="col-span-2"><span className="font-semibold">Endereço:</span> {enderecoCompleto(cliente) || "___________________________"}</div>
               <div><span className="font-semibold">Contato:</span> {cliente?.telefone ?? "___________________________"}</div>
               <div><span className="font-semibold">E-mail:</span> {cliente?.email ?? "___________________________"}</div>
             </div>
@@ -191,40 +191,40 @@ export default function ContratoCompra() {
           <p className="mb-2">Pelo presente instrumento particular de aceite de proposta de compra de veículo de intermediação, as partes acima qualificadas têm entre si justo e acertado o seguinte:</p>
 
           <h4 className="font-bold mt-4 mb-2">Das Declarações Iniciais</h4>
-          <p className="mb-1">1.1. A parte CONTRATANTE reconhece como perfeitos os serviços até então prestados pela TRATO FEITO, para intermediar a venda do veículo automotor, qualificado no preâmbulo, de sua propriedade.</p>
+          <p className="mb-1">1.1. A parte CONTRATANTE reconhece como perfeitos os serviços até então prestados pela MEU CARRO ON-LINE LTDA, para intermediar a venda do veículo automotor, qualificado no preâmbulo, de sua propriedade.</p>
           <p className="mb-1">1.2. A parte CONTRATANTE declara, sob as penas da lei, que é legalmente a proprietária e responsável pelo veículo, sendo de sua inteira responsabilidade as informações.</p>
           <p className="mb-1">1.3. A parte CONTRATANTE declara, sob sua responsabilidade, que o veículo objeto deste contrato encontra-se livre de quaisquer ônus, seja judicial ou extrajudicial, com exceção de eventuais débitos expressamente ressalvados.</p>
 
           <h4 className="font-bold mt-4 mb-2">Da Negociação</h4>
-          <p className="mb-1">2.1. Pelo presente instrumento, a parte CONTRATANTE aceita, em caráter irrevogável e irretratável, a proposta de compra do seu veículo, intermediada pela TRATO FEITO, no valor bruto descrito acima, declarando estar ciente e de acordo de todas as deduções incidentes sobre o aludido preço.</p>
+          <p className="mb-1">2.1. Pelo presente instrumento, a parte CONTRATANTE aceita, em caráter irrevogável e irretratável, a proposta de compra do seu veículo, intermediada pela MEU CARRO ON-LINE LTDA, no valor bruto descrito acima, declarando estar ciente e de acordo de todas as deduções incidentes sobre o aludido preço.</p>
 
           <h4 className="font-bold mt-4 mb-2">Do Pagamento</h4>
           <p className="mb-1">3.1. A parte CONTRATANTE autoriza e solicita o repasse dos valores relativos à compra para a conta bancária indicada acima, sendo de sua exclusiva responsabilidade os dados informados.</p>
 
           <h4 className="font-bold mt-4 mb-2">Das Obrigações da Contratada</h4>
-          <p className="mb-1">4.1. A TRATO FEITO obriga-se a receber do comprador o valor correspondente à negociação do bem, assim como realizar o repasse do valor à parte CONTRATANTE, nos moldes deste contrato, por meio de um único depósito na conta bancária de titularidade da parte CONTRATANTE ou de terceiro por ela indicado.</p>
+          <p className="mb-1">4.1. A MEU CARRO ON-LINE LTDA obriga-se a receber do comprador o valor correspondente à negociação do bem, assim como realizar o repasse do valor à parte CONTRATANTE, nos moldes deste contrato, por meio de um único depósito na conta bancária de titularidade da parte CONTRATANTE ou de terceiro por ela indicado.</p>
           <p className="mb-1">4.2. Entregar, após o respectivo preenchimento e a assinatura, a cópia do documento único de transferência – DUT, para que a parte CONTRATANTE possa realizar a comunicação de venda.</p>
           <p className="mb-1">4.3. Na hipótese de o veículo conter quaisquer gravames, o pagamento será realizado somente após a(s) baixa(s) do(s) gravame(s) no órgão de trânsito.</p>
 
           <h4 className="font-bold mt-4 mb-2">Das Obrigações da Contratante</h4>
           <p className="mb-1">5.1. Informar a existência de qualquer falha, defeito ou desgaste do veículo existente, ainda que não aparente.</p>
-          <p className="mb-1">5.2. Não retirar o veículo do estabelecimento da TRATO FEITO, após a realização da perícia cautelar.</p>
+          <p className="mb-1">5.2. Não retirar o veículo do estabelecimento da MEU CARRO ON-LINE LTDA, após a realização da perícia cautelar.</p>
           <p className="mb-1">5.3. Apresentar os documentos necessários para circulação e transferência do veículo.</p>
-          <p className="mb-1">5.4. Outorgar procuração aos prepostos da TRATO FEITO para fins de transferência do veículo.</p>
-          <p className="mb-1">5.5. Arcar com o custo de perícia cautelar por empresa indicada pela TRATO FEITO.</p>
+          <p className="mb-1">5.4. Outorgar procuração aos prepostos da MEU CARRO ON-LINE LTDA para fins de transferência do veículo.</p>
+          <p className="mb-1">5.5. Arcar com o custo de perícia cautelar por empresa indicada pela MEU CARRO ON-LINE LTDA.</p>
           <p className="mb-1">5.6. Responsabilizar-se por quaisquer danos, multas, infrações, tributos e encargos incidentes sobre o veículo cujo fato gerador tenha ocorrido até o momento da entrega.</p>
 
           <h4 className="font-bold mt-4 mb-2">Da Cessão do Direito de Voz e Imagem</h4>
-          <p className="mb-1">6.1. A parte CONTRATANTE autoriza a TRATO FEITO, a título universal, em caráter total, definitivo, irrevogável e irretratável, a utilização da sua imagem e voz, para fixação em sítios eletrônicos, redes sociais e materiais publicitários.</p>
+          <p className="mb-1">6.1. A parte CONTRATANTE autoriza a MEU CARRO ON-LINE LTDA, a título universal, em caráter total, definitivo, irrevogável e irretratável, a utilização da sua imagem e voz, para fixação em sítios eletrônicos, redes sociais e materiais publicitários.</p>
 
           <h4 className="font-bold mt-4 mb-2">Da Proteção de Dados</h4>
           <p className="mb-1">7.1. As partes se comprometem a respeitar a privacidade e a confidencialidade das informações, não divulgando a terceiros, com exceção das hipóteses previstas na lei.</p>
           <p className="mb-1">7.2. As partes se comprometem a adotar todas as boas práticas de proteção de dados e segurança da informação, nos termos da LGPD.</p>
 
           <h4 className="font-bold mt-4 mb-2">Das Disposições Finais</h4>
-          <p className="mb-1">8.1. Em caso de impossibilidade presente ou superveniente da transferência do veículo junto ao órgão de trânsito, a TRATO FEITO poderá exigir a resolução do negócio, com cláusula penal no importe de 10% sobre o valor bruto da negociação.</p>
+          <p className="mb-1">8.1. Em caso de impossibilidade presente ou superveniente da transferência do veículo junto ao órgão de trânsito, a MEU CARRO ON-LINE LTDA poderá exigir a resolução do negócio, com cláusula penal no importe de 10% sobre o valor bruto da negociação.</p>
           <p className="mb-1">9.1. Este contrato é firmado em caráter irrevogável e irretratável unilateralmente.</p>
-          <p className="mb-1">9.2. As partes elegem o foro da comarca do endereço da TRATO FEITO para dirimir quaisquer dúvidas.</p>
+          <p className="mb-1">9.2. As partes elegem o foro da comarca do endereço da MEU CARRO ON-LINE LTDA para dirimir quaisquer dúvidas.</p>
         </section>
 
         {/* Bloco 6 - Assinaturas */}

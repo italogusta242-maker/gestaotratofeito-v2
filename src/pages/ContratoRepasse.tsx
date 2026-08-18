@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { formatBRL, parseDateLocal } from "@/lib/format";
+import { enderecoCompleto, formatBRL, parseDateLocal } from "@/lib/format";
 import { EMPRESA } from "@/lib/empresa";
 import { fetchPixEmpresa } from "@/lib/pix";
 import logoTratoFeito from "@/assets/logo-trato-feito.png";
@@ -95,7 +95,7 @@ export default function ContratoRepasse() {
             <div className="col-span-2"><span className="font-semibold">Nome / Razão Social:</span> {comprador?.nome ?? "____________________________________________"}</div>
             <div><span className="font-semibold">CNPJ/CPF:</span> {comprador?.cpf_cnpj ?? "____________________"}</div>
             <div><span className="font-semibold">Telefone:</span> {comprador?.telefone ?? "____________________"}</div>
-            <div className="col-span-2"><span className="font-semibold">Endereço:</span> {comprador?.endereco ?? "________________________________________________________________"}</div>
+            <div className="col-span-2"><span className="font-semibold">Endereço:</span> {enderecoCompleto(comprador) || "________________________________________________________________"}</div>
             <div className="col-span-2"><span className="font-semibold">E-mail:</span> {comprador?.email ?? "________________________________________"}</div>
           </div>
 

@@ -6,7 +6,7 @@ import { Printer, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { formatBRL, parseDateLocal } from "@/lib/format";
+import { enderecoCompleto, formatBRL, parseDateLocal } from "@/lib/format";
 import { EMPRESA } from "@/lib/empresa";
 import { fetchPixEmpresa } from "@/lib/pix";
 import logoTratoFeito from "@/assets/logo-trato-feito.png";
@@ -93,7 +93,7 @@ export default function ContratoVenda() {
               <div className="col-span-2"><span className="font-semibold">Nome/Razão Social:</span> {cliente?.nome ?? "____________________________________________"}</div>
               <div><span className="font-semibold">CPF/CNPJ:</span> {cliente?.cpf_cnpj ?? "____________________"}</div>
               <div><span className="font-semibold">RG:</span> {cliente?.rg ?? "____________________"}</div>
-              <div className="col-span-2"><span className="font-semibold">Endereço:</span> {cliente?.endereco ?? "________________________________________________________________"}</div>
+              <div className="col-span-2"><span className="font-semibold">Endereço:</span> {enderecoCompleto(cliente) || "________________________________________________________________"}</div>
               <div><span className="font-semibold">Telefone:</span> {cliente?.telefone ?? "____________________"}</div>
               <div><span className="font-semibold">E-mail:</span> {cliente?.email ?? "____________________"}</div>
             </div>
