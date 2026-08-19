@@ -78,7 +78,22 @@ export default function Procuracao() {
                 </Button>
             </div>
 
-            <div ref={conteudoRef} className="text-black bg-white" style={{ fontFamily: "Times New Roman, serif", lineHeight: 1.8, fontSize: "16px" }}>
+            <div
+                ref={conteudoRef}
+                className="text-black bg-white mx-auto"
+                style={{
+                    /* Largura fixa A4 (210mm ≈ 794px @96dpi). Sem isso o
+                       html2canvas mede scrollWidth do conteúdo — se o texto
+                       não força uma largura mínima, o PDF sai estreito e o
+                       conteúdo fica espremido numa coluna. */
+                    width: "210mm",
+                    maxWidth: "100%",
+                    padding: "20mm 18mm",
+                    boxSizing: "border-box",
+                    fontFamily: "Times New Roman, serif",
+                    lineHeight: 1.8,
+                    fontSize: "16px",
+                }}>
                 <h1 className="text-2xl font-bold text-center mb-2 uppercase">INSTRUMENTO DE PROCURAÇÃO</h1>
                 <p className="text-center mb-10 text-lg">PROCURAÇÃO bastante que faz: <strong>{nome.toUpperCase()}</strong></p>
 

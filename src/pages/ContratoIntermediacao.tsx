@@ -8,7 +8,27 @@ import { ptBR } from "date-fns/locale";
 import logo from "@/assets/logo-trato-feito.png";
 import { EMPRESA } from "@/lib/empresa";
 import { fetchPixEmpresa } from "@/lib/pix";
-import type { Veiculo, Cliente, ChavePix } from "@/lib/db-types";
+import { formatBRL } from "@/lib/format";
+import type { Veiculo, Cliente, ChavePix, Transacao } from "@/lib/db-types";
+
+/**
+ * Reconhece se uma dedução é "Saldo de Quitação" (que vai numa linha
+ * específica da tabela do contrato — não entra em Débitos).
+ */
+function ehQuitacao(t: Transacao): boolean {
+  return /quita/i.test(t.descricao ?? "");
+}
+
+/**
+ * Reconhece débito de órgão público (IPVA, multas, licenciamento) —
+ * pode vir tanto pela categoria antiga quanto pela descrição da dedução
+ * unificada nova.
+ */
+function ehDebitoOrgao(t: Transacao): boolean {
+  const cat = t.categoria ?? "";
+  if (cat === "IPVA" || cat === "Multas" || cat === "Licenciamento") return true;
+  return /ipva|multa|licenciam/i.test(t.descricao ?? "");
+}
 
 export default function ContratoIntermediacao() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +36,7 @@ export default function ContratoIntermediacao() {
   const [veiculo, setVeiculo] = useState<Veiculo | null>(null);
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [pixEmpresa, setPixEmpresa] = useState<ChavePix | null>(null);
+  const [despesas, setDespesas] = useState<Transacao[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,6 +48,13 @@ export default function ContratoIntermediacao() {
         const { data: c } = await supabase.from("clientes").select("*").eq("id", v.cliente_compra_id).single();
         setCliente(c);
       }
+      const { data: txs } = await supabase
+        .from("transacoes")
+        .select("*")
+        .eq("veiculo_id", id)
+        .eq("tipo", "Despesa")
+        .in("categoria", ["Dedução", "IPVA", "Multas", "Licenciamento", "Despesa de Veículo"]);
+      setDespesas(txs ?? []);
       setPixEmpresa(await fetchPixEmpresa());
       setLoading(false);
     })();
@@ -37,6 +65,19 @@ export default function ContratoIntermediacao() {
 
   const hoje = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
   const anoDisplay = veiculo.ano_modelo && veiculo.ano_modelo !== veiculo.ano ? `${veiculo.ano}/${veiculo.ano_modelo}` : veiculo.ano;
+
+  // Cálculo dos valores da tabela de negociação. Segue o mesmo modelo do
+  // Contrato de Compra pra não divergir de significado entre documentos:
+  //   1. Valor bruto = valor de aquisição cadastrado no veículo.
+  //   2. Quitação = deduções com descrição "Saldo de Quitação".
+  //   3. Débitos = IPVA + Multas + Licenciamento (categoria antiga ou descrição).
+  //   4. Total de deduções = soma de tudo que abate o valor bruto.
+  //   5. Líquido = bruto − total de deduções.
+  const valorBruto = Number(veiculo.valor_aquisicao ?? 0);
+  const totalQuitacao = despesas.filter(ehQuitacao).reduce((s, d) => s + Number(d.valor), 0);
+  const totalDebitos = despesas.filter((d) => !ehQuitacao(d) && ehDebitoOrgao(d)).reduce((s, d) => s + Number(d.valor), 0);
+  const totalDeducoes = despesas.reduce((s, d) => s + Number(d.valor), 0);
+  const valorLiquido = valorBruto - totalDeducoes;
 
   const nome = cliente?.nome ?? "___________________________________";
   const cpfCnpj = cliente?.cpf_cnpj ?? "___________________";
@@ -173,13 +214,51 @@ export default function ContratoIntermediacao() {
 
           <table className="w-full border-collapse border border-black text-[10px] my-2">
             <tbody>
-              <tr><td className="border border-black p-1">1. VALOR BRUTO DO VEÍCULO:</td><td className="border border-black p-1 w-32">R$</td></tr>
-              <tr><td className="border border-black p-1">2. VALOR DEVIDO PARA QUITAÇÃO:</td><td className="border border-black p-1">R$</td></tr>
-              <tr><td className="border border-black p-1">3. DÉBITOS (IPVA/MULTA/LICENCIAMENTO):</td><td className="border border-black p-1">R$</td></tr>
-              <tr><td className="border border-black p-1">4. VALOR TOTAL DAS DEDUÇÕES:</td><td className="border border-black p-1">R$</td></tr>
-              <tr><td className="border border-black p-1 font-bold">5. VALOR LÍQUIDO DE PROPOSTA DE COMPRA:</td><td className="border border-black p-1">R$</td></tr>
+              <tr>
+                <td className="border border-black p-1">1. VALOR BRUTO DO VEÍCULO:</td>
+                <td className="border border-black p-1 w-32">{formatBRL(valorBruto)}</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1">2. VALOR DEVIDO PARA QUITAÇÃO:</td>
+                <td className="border border-black p-1">{formatBRL(totalQuitacao)}</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1">3. DÉBITOS (IPVA/MULTA/LICENCIAMENTO):</td>
+                <td className="border border-black p-1">{formatBRL(totalDebitos)}</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1">4. VALOR TOTAL DAS DEDUÇÕES:</td>
+                <td className="border border-black p-1">{formatBRL(totalDeducoes)}</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1 font-bold">5. VALOR LÍQUIDO DE PROPOSTA DE COMPRA:</td>
+                <td className="border border-black p-1 font-bold">{formatBRL(valorLiquido)}</td>
+              </tr>
             </tbody>
           </table>
+
+          {/* Detalhamento das deduções — quando existem, o comprador enxerga
+              linha a linha o que compõe o total. Sem isso a tabela acima
+              mostra só o agregado e o CONTRATANTE fica sem transparência. */}
+          {despesas.length > 0 && (
+            <table className="w-full border-collapse border border-black text-[10px] my-2">
+              <tbody>
+                <tr>
+                  <td className="border border-black p-1 font-bold bg-gray-100" colSpan={2}>
+                    DETALHAMENTO DAS DEDUÇÕES
+                  </td>
+                </tr>
+                {despesas.map((d, i) => (
+                  <tr key={d.id}>
+                    <td className="border border-black p-1">
+                      {String(i + 1).padStart(2, "0")}. {d.descricao || "Dedução"}
+                    </td>
+                    <td className="border border-black p-1 w-32">{formatBRL(Number(d.valor))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
           <h3 className="font-bold text-xs uppercase mt-4">Do Pagamento</h3>
           <p>3. A parte CONTRATANTE autoriza e solicita o pagamento do VALOR LÍQUIDO DE PROPOSTA DE COMPRA para a conta bancária abaixo indicada, sendo de sua exclusiva responsabilidade os dados informados:</p>
@@ -192,7 +271,7 @@ export default function ContratoIntermediacao() {
               <tr><td className="border border-black p-1">TIPO DA CHAVE PIX:</td><td className="border border-black p-1">{cliente?.chave_pix_tipo ?? ""}</td></tr>
               <tr><td className="border border-black p-1">CHAVE PIX:</td><td className="border border-black p-1">{cliente?.chave_pix ?? ""}</td></tr>
               <tr><td className="border border-black p-1">OBSERVAÇÃO:</td><td className="border border-black p-1">Pagamento realizado exclusivamente via PIX.</td></tr>
-              <tr><td className="border border-black p-1 font-bold">VALOR TOTAL:</td><td className="border border-black p-1">R$</td></tr>
+              <tr><td className="border border-black p-1 font-bold">VALOR TOTAL:</td><td className="border border-black p-1 font-bold">{formatBRL(valorLiquido)}</td></tr>
             </tbody>
           </table>
 
