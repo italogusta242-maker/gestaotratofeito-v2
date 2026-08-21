@@ -77,9 +77,9 @@ export default function ContratoCompra() {
   const valorLiquido = valorBruto - totalDespesas;
 
   return (
-    <div className="bg-white min-h-screen text-black">
+    <div className="bg-white min-h-screen text-black printable-area">
       {/* Print button - hidden on print */}
-      <div className="fixed top-4 right-4 z-50 print:hidden flex gap-2">
+      <div className="fixed top-4 right-4 z-50 print:hidden flex gap-2 no-print">
         <Button onClick={() => navigate(`/veiculos/${id}/detalhe`)} variant="outline" className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Voltar
         </Button>
@@ -92,6 +92,24 @@ export default function ContratoCompra() {
       </div>
 
       <div ref={conteudoRef} className="max-w-[210mm] mx-auto px-12 py-10 print:px-0 print:py-0 print:max-w-none text-[13px] leading-relaxed font-serif">
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            @media print {
+              /* Isola o contrato do resto do app (sidebar, topbar do menu,
+                 header do usuário). Sem isso o print vinha com a UI toda. */
+              body * { visibility: hidden; }
+              .printable-area, .printable-area * { visibility: visible; }
+              .printable-area {
+                position: absolute;
+                left: 0; top: 0;
+                width: 100%;
+                margin: 0;
+              }
+              .no-print { display: none !important; }
+              @page { margin: 15mm 15mm; }
+            }
+          `
+        }} />
         {/* Header */}
         <div className="text-center mb-6">
           <img src={logoTratoFeito} alt="Trato Feito Seminovos" className="mx-auto h-20 mb-2" />

@@ -28,7 +28,18 @@ function checarDocumentos(
   const temFormaPgto = Boolean(veiculo.forma_pagamento);
   const temDataVenda = Boolean(veiculo.data_venda);
 
-  return [
+  // Só faz sentido cobrar dados de venda quando o veículo já saiu do
+  // estoque OU quando o Mauricio começou a preencher os dados de venda
+  // (indicando intenção). Antes disso, o card fica "poluído" cobrando
+  // dados que ainda nem existem no fluxo.
+  const vendaIniciada =
+    veiculo.status === "Vendido" ||
+    !!venda ||
+    !!veiculo.cliente_venda_id ||
+    temReceita ||
+    temValorVenda;
+
+  const docs: Documento[] = [
     {
       nome: "Contrato de Compra / Intermediação",
       itens: [
@@ -37,26 +48,33 @@ function checarDocumentos(
         { rotulo: "Chave PIX do cliente vendedor", ok: !!compra?.chave_pix },
       ],
     },
-    {
-      nome: "Contrato de Venda / Repasse",
-      itens: [
-        { rotulo: "Cliente comprador (aba Venda)", ok: !!venda },
-        {
-          rotulo: "Valor + forma de pagamento (ou receita lançada)",
-          ok: temReceita || (temValorVenda && temFormaPgto),
-        },
-        { rotulo: "Data da venda", ok: temReceita || temDataVenda },
-      ],
-    },
-    {
-      nome: "Recibo",
-      itens: [
-        { rotulo: "Cliente comprador", ok: !!venda },
-        { rotulo: "Valor da venda", ok: temReceita || temValorVenda },
-        { rotulo: "Data da venda", ok: temReceita || temDataVenda },
-      ],
-    },
   ];
+
+  if (vendaIniciada) {
+    docs.push(
+      {
+        nome: "Contrato de Venda / Repasse",
+        itens: [
+          { rotulo: "Cliente comprador (aba Venda)", ok: !!venda },
+          {
+            rotulo: "Valor + forma de pagamento (ou receita lançada)",
+            ok: temReceita || (temValorVenda && temFormaPgto),
+          },
+          { rotulo: "Data da venda", ok: temReceita || temDataVenda },
+        ],
+      },
+      {
+        nome: "Recibo",
+        itens: [
+          { rotulo: "Cliente comprador", ok: !!venda },
+          { rotulo: "Valor da venda", ok: temReceita || temValorVenda },
+          { rotulo: "Data da venda", ok: temReceita || temDataVenda },
+        ],
+      },
+    );
+  }
+
+  return docs;
 }
 
 export function ChecklistDocumentos({
@@ -75,7 +93,9 @@ export function ChecklistDocumentos({
     (acc, d) => acc + d.itens.filter((i) => !i.ok).length,
     0,
   );
-  const [aberto, setAberto] = useState(pendencias > 0);
+  // Começa fechado: o header amber já sinaliza sozinho quantos campos
+  // faltam. Se o Mauricio quiser detalhes, ele clica pra expandir.
+  const [aberto, setAberto] = useState(false);
 
   if (pendencias === 0) {
     return (

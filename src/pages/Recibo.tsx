@@ -82,7 +82,25 @@ export default function Recibo() {
     null;
 
   return (
-    <div className="max-w-2xl mx-auto p-8 bg-white min-h-screen">
+    <div className="max-w-2xl mx-auto p-8 bg-white min-h-screen printable-area">
+      {/* Isola o recibo do resto do app na impressão (sidebar, topbar, header
+          do usuário). Sem esse bloco a UI toda sai impressa junto. */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @media print {
+            body * { visibility: hidden; }
+            .printable-area, .printable-area * { visibility: visible; }
+            .printable-area {
+              position: absolute;
+              left: 0; top: 0;
+              width: 100%;
+              margin: 0;
+            }
+            .no-print { display: none !important; }
+            @page { margin: 15mm 15mm; }
+          }
+        `
+      }} />
       <div className="no-print mb-4 flex gap-2">
         <Button onClick={() => navigate(`/veiculos/${id}/detalhe`)} variant="outline" className="gap-1">
           <ArrowLeft className="h-4 w-4" /> Voltar
