@@ -60,6 +60,7 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
     valor_venda: 0,
     desconto: 0,
     forma_pagamento: "",
+    data_venda: "",
     centro_custo_id: defaultValues?.centro_custo_id ?? "",
     data_entrada_patio: new Date().toISOString().split("T")[0],
   });
@@ -122,6 +123,7 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
       valor_venda: form.valor_venda || 0,
       desconto: form.desconto || 0,
       forma_pagamento: form.forma_pagamento || null,
+      data_venda: form.data_venda || null,
       centro_custo_id: form.centro_custo_id || null,
       cliente_compra_id: clienteCompraId,
       is_consignment: isConsignment,
@@ -283,6 +285,10 @@ export default function NovoVeiculoDialog({ open, onClose, defaultValues, title 
                       <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>{FORMAS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
                     </Select>
+                  </div>
+                  <div>
+                    <Label>Data da Venda</Label>
+                    <Input type="date" value={form.data_venda} onChange={(e) => setForm({ ...form, data_venda: e.target.value })} />
                   </div>
                 </div>
               </AccordionContent>

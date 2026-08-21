@@ -51,8 +51,22 @@ export default function ContratoVenda() {
   const ano = format(hoje, "yyyy");
   const anoDisplay = veiculo.ano_modelo && veiculo.ano_modelo !== veiculo.ano ? `${veiculo.ano}/${veiculo.ano_modelo}` : veiculo.ano;
 
-  const totalNegociacao = pagamentos.reduce((s, p) => s + Number(p.valor), 0);
-  const linhasPagamento = [...pagamentos];
+  // Fallback: se ainda não tem transação de receita lançada mas o veículo já
+  // tem valor de venda + forma de pagamento preenchidos no cadastro, gera
+  // uma linha automática pro contrato não sair em branco. É o caminho comum
+  // pra vendas simples "à vista" que ainda não geraram lançamentos.
+  const temTransacao = pagamentos.length > 0;
+  const linhaSintetica: Transacao | null =
+    !temTransacao && Number(veiculo.valor_venda ?? 0) > 0
+      ? ({
+          descricao: veiculo.forma_pagamento || "À vista",
+          data_vencimento: veiculo.data_venda ?? format(hoje, "yyyy-MM-dd"),
+          valor: Number(veiculo.valor_venda),
+        } as unknown as Transacao)
+      : null;
+  const pagamentosParaExibir = temTransacao ? pagamentos : linhaSintetica ? [linhaSintetica] : [];
+  const totalNegociacao = pagamentosParaExibir.reduce((s, p) => s + Number(p.valor), 0);
+  const linhasPagamento = [...pagamentosParaExibir];
   while (linhasPagamento.length < 3) {
     linhasPagamento.push(null as unknown as Transacao);
   }
@@ -201,30 +215,30 @@ export default function ContratoVenda() {
           <p className="mt-3">E por estarem assim justas e contratadas, as partes firmam o presente instrumento, em formato físico ou eletrônico, para que produza seus jurídicos e legais efeitos.</p>
         </section>
 
-        {/* Assinaturas */}
-        <section className="mt-12">
+        {/* Assinaturas — bloco protegido contra quebra de página. */}
+        <section className="mt-12 assinaturas-bloco">
           <p className="text-center mb-10">{EMPRESA.cidade}/{EMPRESA.uf}, {dia} de {mesExtenso} de {ano}.</p>
 
           <div className="grid grid-cols-1 gap-10">
-            <div className="text-center">
+            <div className="text-center assinatura-item">
               <div className="border-t border-black pt-2 mx-32">
                 <p className="font-bold text-xs">VENDEDORA — {EMPRESA.razaoSocial}</p>
               </div>
             </div>
-            <div className="text-center">
+            <div className="text-center assinatura-item">
               <div className="border-t border-black pt-2 mx-32">
                 <p className="font-bold text-xs">COMPRADOR(A) {cliente?.nome ? `— ${cliente.nome.toUpperCase()}` : ""}</p>
                 {cliente?.cpf_cnpj && <p className="text-[10px] text-gray-600">CPF/CNPJ: {cliente.cpf_cnpj}</p>}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-16 mt-6">
-              <div className="text-center">
+              <div className="text-center assinatura-item">
                 <div className="border-t border-black pt-2 mx-4">
                   <p className="font-bold text-xs">TESTEMUNHA 1</p>
                   <p className="text-[10px] text-gray-600">CPF: ________________________</p>
                 </div>
               </div>
-              <div className="text-center">
+              <div className="text-center assinatura-item">
                 <div className="border-t border-black pt-2 mx-4">
                   <p className="font-bold text-xs">TESTEMUNHA 2</p>
                   <p className="text-[10px] text-gray-600">CPF: ________________________</p>

@@ -334,16 +334,18 @@ export default function ContratoIntermediacao() {
           <p><strong>9.8.</strong> E por estarem de acordo com o conteúdo contratual, elegem o foro da comarca do endereço da CONTRATADA qualificado no preâmbulo, para dirimir quaisquer dúvidas, renunciando as partes a qualquer outro, por mais privilegiado que seja.</p>
         </div>
 
-        {/* Assinaturas */}
-        <section className="mt-16">
+        {/* Assinaturas — bloco inteiro protegido de quebra de página pra
+            evitar linha numa folha e rótulo na outra (bug do "legenda ao lado,
+            nome acima" reportado). Também protege cada assinatura individual. */}
+        <section className="mt-16 assinaturas-bloco">
           <p className="text-center mb-16">BRASÍLIA-DF, {hoje}.</p>
           <div className="grid grid-cols-1 gap-16 mt-12">
-            <div className="text-center">
+            <div className="text-center assinatura-item">
               <div className="border-t border-black pt-2 mx-16">
                 <p className="font-bold">CONTRATADA</p>
               </div>
             </div>
-            <div className="text-center">
+            <div className="text-center assinatura-item">
               <div className="border-t border-black pt-2 mx-16">
                 <p className="font-bold">CONTRATANTE</p>
               </div>

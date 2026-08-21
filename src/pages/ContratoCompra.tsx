@@ -227,18 +227,18 @@ export default function ContratoCompra() {
           <p className="mb-1">9.2. As partes elegem o foro da comarca do endereço da MEU CARRO ON-LINE LTDA para dirimir quaisquer dúvidas.</p>
         </section>
 
-        {/* Bloco 6 - Assinaturas */}
-        <section className="mt-16">
+        {/* Bloco 6 - Assinaturas — protegido contra quebra de página. */}
+        <section className="mt-16 assinaturas-bloco">
           <p className="text-center mb-12">Brasília-DF, {hoje}.</p>
 
           <div className="grid grid-cols-2 gap-16 mt-16">
-            <div className="text-center">
+            <div className="text-center assinatura-item">
               <div className="border-t border-black pt-2 mx-4">
                 <p className="font-bold">{EMPRESA.razaoSocial}</p>
                 <p className="text-xs text-gray-600">CNPJ: {EMPRESA.cnpj}</p>
               </div>
             </div>
-            <div className="text-center">
+            <div className="text-center assinatura-item">
               <div className="border-t border-black pt-2 mx-4">
                 <p className="font-bold">CONTRATANTE</p>
                 <p className="text-xs text-gray-600">{cliente?.nome ?? "________________________"}</p>
@@ -248,6 +248,7 @@ export default function ContratoCompra() {
           </div>
         </section>
       </div>
+
     </div>
   );
 }

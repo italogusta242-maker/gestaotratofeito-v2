@@ -525,6 +525,7 @@ export type Database = {
           cor: string | null
           created_at: string
           data_entrada_patio: string | null
+          data_venda: string | null
           desconto: number
           especie: string | null
           forma_pagamento: string | null
@@ -556,6 +557,7 @@ export type Database = {
           cor?: string | null
           created_at?: string
           data_entrada_patio?: string | null
+          data_venda?: string | null
           desconto?: number
           especie?: string | null
           forma_pagamento?: string | null
@@ -587,6 +589,7 @@ export type Database = {
           cor?: string | null
           created_at?: string
           data_entrada_patio?: string | null
+          data_venda?: string | null
           desconto?: number
           especie?: string | null
           forma_pagamento?: string | null

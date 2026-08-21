@@ -111,6 +111,15 @@
     display: none !important;
   }
 
+  /* Bloco de assinaturas nunca deve ser quebrado entre páginas — evita
+     rótulo em uma folha e linha na outra (bug reportado como "legenda ao
+     lado, nome acima"). Vale global pra todos os documentos imprimíveis. */
+  .assinaturas-bloco,
+  .assinatura-item {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   @page {
     size: A4;
     margin: 15mm;

@@ -19,6 +19,7 @@ import { format, differenceInDays } from "date-fns";
 import DespesaDialog from "@/components/DespesaDialog";
 import VendaDialog from "@/components/VendaDialog";
 import ClienteSelector from "@/components/ClienteSelector";
+import { ChecklistDocumentos } from "@/components/ChecklistDocumentos";
 import { formatBRL } from "@/lib/format";
 import type { VeiculoComCentro, Cliente, Transacao, CentroCusto } from "@/lib/db-types";
 import { translateError } from "@/lib/supabase-errors";
@@ -224,6 +225,7 @@ export default function VeiculoDetalhe() {
       valor_venda: veiculo.valor_venda || 0,
       desconto: veiculo.desconto ?? 0,
       forma_pagamento: veiculo.forma_pagamento || "",
+      data_venda: veiculo.data_venda || "",
       is_consignment: veiculo.is_consignment ? "true" : "false",
       data_entrada_patio: veiculo.data_entrada_patio || "",
       centro_custo_id: veiculo.centro_custo_id || "",
@@ -269,6 +271,7 @@ export default function VeiculoDetalhe() {
       valor_venda: Number(editForm.valor_venda) || 0,
       desconto: Number(editForm.desconto) || 0,
       forma_pagamento: (editForm.forma_pagamento as string) || null,
+      data_venda: (editForm.data_venda as string) || null,
       is_consignment: editForm.is_consignment === "true",
       data_entrada_patio: editForm.data_entrada_patio || null,
       centro_custo_id: centroId,
@@ -744,6 +747,15 @@ export default function VeiculoDetalhe() {
         </Card>
       </div>
 
+      {/* Checklist de dados essenciais pra cada documento — evita imprimir
+          contratos com campos em branco. Aparece antes dos botões dos contratos. */}
+      <ChecklistDocumentos
+        veiculo={veiculo}
+        clienteCompra={clienteCompra}
+        clienteVenda={clienteVenda}
+        transacoes={transacoes}
+      />
+
       {/* Ações extras - Contratos */}
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" className="gap-1" onClick={() => navigate(`/veiculos/${id}/contrato-compra`)}>
@@ -867,6 +879,10 @@ export default function VeiculoDetalhe() {
                             <SelectItem value="Veículo na Troca">Veículo na Troca</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+                      <div>
+                        <Label>Data da Venda</Label>
+                        <Input type="date" value={editForm.data_venda as string} onChange={(e) => setEditForm({ ...editForm, data_venda: e.target.value })} />
                       </div>
                     </div>
                   </AccordionContent>
