@@ -198,6 +198,7 @@ export default function ContratoCompra() {
             <div><span className="font-semibold">Beneficiário(a):</span> {cliente?.nome ?? "___________________________"}</div>
             <div><span className="font-semibold">CPF/CNPJ:</span> {cliente?.cpf_cnpj ?? "___________________________"}</div>
             <div className="col-span-2"><span className="font-semibold">Chave PIX:</span> {cliente?.chave_pix ?? "___________________________"}</div>
+            <div className="col-span-2 mt-2 pt-2 border-t border-black font-bold">VALOR TOTAL: {formatBRL(valorLiquido)}</div>
           </div>
           <p className="text-[10px] text-gray-500 mt-1 italic">Pagamento realizado exclusivamente via PIX na chave informada pelo(a) CONTRATANTE.</p>
         </section>

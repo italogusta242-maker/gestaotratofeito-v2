@@ -19,6 +19,7 @@ import NovoVeiculoDialog from "@/components/NovoVeiculoDialog";
 import { CurrencyInput } from "@/components/ui/masked-input";
 import { differenceInDays } from "date-fns";
 import { formatPlaca, cleanPlaca } from "@/lib/format-placa";
+import { PlacaBadge } from "@/components/ui/placa-badge";
 import { formatBRL, upperCase } from "@/lib/format";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { VeiculoComCentro, CentroCusto } from "@/lib/db-types";
@@ -248,7 +249,7 @@ export default function Veiculos() {
                           onClick={() => navigate(`/veiculos/${v.id}/detalhe`)}
                         >
                           <div className="flex items-center justify-between">
-                            <span className="font-bold text-xs tracking-wider">{formatPlaca(v.placa)}</span>
+                            <PlacaBadge placa={v.placa} size="sm" />
                             {v.is_consignment && (
                               <Badge variant="outline" className="text-[9px] h-3.5 px-1 border-purple-500/30 text-purple-600">C</Badge>
                             )}
@@ -312,7 +313,7 @@ export default function Veiculos() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[100px]">Placa</TableHead>
+                <TableHead className="w-[110px]">Placa</TableHead>
                 <TableHead>Marca/Modelo</TableHead>
                 <TableHead className="w-[80px]">Ano/Mod</TableHead>
                 <TableHead className="w-[110px]">Status</TableHead>
@@ -325,7 +326,7 @@ export default function Veiculos() {
             <TableBody>
               {filtered.map(v => (
                 <TableRow key={v.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/veiculos/${v.id}/detalhe`)}>
-                  <TableCell className="font-bold text-sm tracking-wider">{formatPlaca(v.placa)}</TableCell>
+                  <TableCell className="whitespace-nowrap"><PlacaBadge placa={v.placa} size="sm" /></TableCell>
                   <TableCell className="text-sm max-w-[150px] truncate" title={v.marca_modelo}>{v.marca_modelo}</TableCell>
                   <TableCell className="text-sm">{v.ano}{(v.ano_modelo && v.ano_modelo !== v.ano) ? `/${v.ano_modelo.slice(-2)}` : ""}</TableCell>
                   <TableCell><StatusBadge status={v.status} /></TableCell>

@@ -21,6 +21,7 @@ import VendaDialog from "@/components/VendaDialog";
 import ClienteSelector from "@/components/ClienteSelector";
 import { ChecklistDocumentos } from "@/components/ChecklistDocumentos";
 import { formatBRL } from "@/lib/format";
+import { PlacaBadge } from "@/components/ui/placa-badge";
 import type { VeiculoComCentro, Cliente, Transacao, CentroCusto } from "@/lib/db-types";
 import { translateError } from "@/lib/supabase-errors";
 
@@ -389,13 +390,13 @@ export default function VeiculoDetalhe() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Car className="h-5 w-5 text-muted-foreground" />
               <h1 className="text-2xl font-bold">{veiculo.marca_modelo}</h1>
+              <PlacaBadge placa={veiculo.placa} size="md" />
               {veiculo.is_consignment && <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20" variant="outline">Consignado</Badge>}
             </div>
             <div className="text-sm text-foreground mt-2 bg-muted/30 p-2.5 rounded-md border inline-block">
-              <span className="font-semibold mr-1">Placa:</span>{veiculo.placa} •&nbsp;
               <span className="font-semibold mr-1">Chassi:</span>{veiculo.chassi || "—"} •&nbsp;
               <span className="font-semibold mr-1">Renavam:</span>{veiculo.renavam || "—"} •&nbsp;
               <span className="font-semibold mr-1">Marca/Modelo:</span>{veiculo.marca_modelo} •&nbsp;
@@ -598,7 +599,7 @@ export default function VeiculoDetalhe() {
                             <TableCell>
                               <Badge variant="outline" className="text-xs">{tx.categoria}</Badge>
                             </TableCell>
-                            <TableCell className="font-medium">{formatBRL(Number(tx.valor))}</TableCell>
+                            <TableCell className="font-medium">{formatBRL(Number(tx.valor) + (deducoesTx.length > 0 ? totalDeducoes : 0))}</TableCell>
                             <TableCell>{format(new Date(tx.created_at), "dd/MM/yyyy")}</TableCell>
                             {canWrite && (
                               <TableCell>

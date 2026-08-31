@@ -1,4 +1,4 @@
-import { Car, LayoutDashboard, Building2, Users, Receipt, UserCheck, CreditCard, Landmark, CalendarClock, FileWarning, FileSpreadsheet, UsersRound } from "lucide-react";
+import { Car, LayoutDashboard, Building2, Users, Receipt, UserCheck, CreditCard, Landmark, CalendarClock, FileWarning, FileSpreadsheet, UsersRound, History } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,6 +19,7 @@ const allItems = [
   { title: "Contas Bancárias", url: "/contas", icon: Building2, roles: ["admin"] },
   { title: "Clientes", url: "/clientes", icon: UserCheck, roles: ["admin", "auxiliar_operacional", "auxiliar_emissao"] },
   { title: "Equipe", url: "/equipe", icon: UsersRound, roles: ["admin"] },
+  { title: "Auditoria", url: "/auditoria", icon: History, roles: ["admin"] },
 ];
 
 export function AppSidebar() {

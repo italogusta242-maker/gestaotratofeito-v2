@@ -15,3 +15,13 @@ export function formatPlaca(raw: string): string {
 export function cleanPlaca(raw: string): string {
   return raw.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 }
+
+/**
+ * Detecta se é placa Mercosul (padrão AAA0A00, 5º char é letra).
+ * Antiga: AAA0000. Retorna false se incompleta/inválida.
+ */
+export function isPlacaMercosul(raw: string): boolean {
+  const c = cleanPlaca(raw);
+  if (c.length !== 7) return false;
+  return /^[A-Z]{3}\d[A-Z]\d{2}$/.test(c);
+}

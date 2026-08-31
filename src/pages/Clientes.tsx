@@ -16,6 +16,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import type { Cliente } from "@/lib/db-types";
 import { translateError } from "@/lib/supabase-errors";
 import { buscarCep, formatCep, normalizeCep } from "@/lib/cep";
+import { buscarCnpj, normalizeCnpj } from "@/lib/cnpj";
+import { maskPhone } from "@/lib/masks";
 
 export default function Clientes() {
   const { role } = useAuth();
@@ -28,6 +30,7 @@ export default function Clientes() {
   const [form, setForm] = useState({ nome: "", cpf_cnpj: "", email: "", telefone: "", endereco: "", rg: "", estado_civil: "", nacionalidade: "", data_nascimento: "", cep: "", bairro: "", cidade: "", uf: "", chave_pix: "", chave_pix_tipo: "" });
   const [submitting, setSubmitting] = useState(false);
   const [buscandoCep, setBuscandoCep] = useState(false);
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.from("clientes").select("*").order("nome");
@@ -80,6 +83,36 @@ export default function Clientes() {
     if (normalizeCep(value).length === 8) {
       buscaEAtualiza(value);
     }
+  }
+
+  async function buscaCnpjEAtualiza(cnpjRaw: string) {
+    const clean = normalizeCnpj(cnpjRaw);
+    if (clean.length !== 14) return;
+    setBuscandoCnpj(true);
+    const empresa = await buscarCnpj(clean);
+    setBuscandoCnpj(false);
+    if (!empresa) {
+      toast.error("CNPJ não encontrado ou API indisponível.");
+      return;
+    }
+    setForm(f => ({
+      ...f,
+      nome: f.nome?.trim() ? f.nome : (empresa.razaoSocial || empresa.nomeFantasia),
+      cep: f.cep?.trim() ? f.cep : (empresa.cep ? formatCep(empresa.cep) : f.cep),
+      endereco: f.endereco?.trim() ? f.endereco : [empresa.logradouro, empresa.numero, empresa.complemento].filter(Boolean).join(", "),
+      bairro: f.bairro?.trim() ? f.bairro : empresa.bairro,
+      cidade: f.cidade?.trim() ? f.cidade : empresa.cidade,
+      uf: f.uf?.trim() ? f.uf : empresa.uf,
+      telefone: f.telefone?.trim() ? f.telefone : (empresa.telefone ? maskPhone(empresa.telefone) : f.telefone),
+      email: f.email?.trim() ? f.email : empresa.email,
+    }));
+    toast.success("Dados da empresa preenchidos.");
+  }
+
+  function handleCpfCnpjChange(value: string) {
+    setForm(f => ({ ...f, cpf_cnpj: value }));
+    const clean = normalizeCnpj(value);
+    if (clean.length === 14) buscaCnpjEAtualiza(clean);
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -151,7 +184,7 @@ export default function Clientes() {
           <AccordionContent>
             <div className="grid grid-cols-2 gap-3 pt-2">
               <div className="col-span-2"><Label>Nome / Razão Social *</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required /></div>
-              <div><Label>CPF/CNPJ *</Label><CpfCnpjInput value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} required /></div>
+              <div><Label>CPF/CNPJ * {buscandoCnpj && <Loader2 className="inline h-3 w-3 animate-spin ml-1" />}</Label><CpfCnpjInput value={form.cpf_cnpj} onChange={handleCpfCnpjChange} required /></div>
               <div><Label>RG</Label><Input value={form.rg} onChange={(e) => setForm({ ...form, rg: e.target.value })} /></div>
               <div><Label>Data de Nascimento</Label><Input type="date" value={form.data_nascimento} onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })} /></div>
               <div><Label>Nacionalidade</Label><Input value={form.nacionalidade} onChange={(e) => setForm({ ...form, nacionalidade: e.target.value })} placeholder="Ex: Brasileiro(a)" /></div>

@@ -21,6 +21,7 @@ const Financiamentos = lazy(() => import("./pages/Financiamentos"));
 const ContasFixas = lazy(() => import("./pages/ContasFixas"));
 const ContasPagarReceber = lazy(() => import("./pages/ContasPagarReceber"));
 const Equipe = lazy(() => import("./pages/Equipe"));
+const Auditoria = lazy(() => import("./pages/Auditoria"));
 const Conciliacao = lazy(() => import("./pages/Conciliacao"));
 const Recibo = lazy(() => import("./pages/Recibo"));
 const ContratoCompra = lazy(() => import("./pages/ContratoCompra"));
@@ -70,6 +71,7 @@ function AppRoutes() {
         <Route path="/contas-pagar-receber" element={<ProtectedRoute allowedRoles={["admin"]}><ContasPagarReceber /></ProtectedRoute>} />
         <Route path="/conciliacao" element={<ProtectedRoute allowedRoles={["admin"]}><Conciliacao /></ProtectedRoute>} />
         <Route path="/equipe" element={<ProtectedRoute allowedRoles={["admin"]}><Equipe /></ProtectedRoute>} />
+        <Route path="/auditoria" element={<ProtectedRoute allowedRoles={["admin"]}><Auditoria /></ProtectedRoute>} />
         <Route path="/usuarios" element={<ProtectedRoute allowedRoles={["admin"]}><Usuarios /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>

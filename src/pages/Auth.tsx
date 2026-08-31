@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Car, ArrowLeft } from "lucide-react";
+import { Car, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { translateError } from "@/lib/supabase-errors";
 
 type Mode = "login" | "reset" | "newPassword";
@@ -17,6 +17,9 @@ export default function Auth() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Detecta quando o usuário chega via link "Esqueci senha" — Supabase emite PASSWORD_RECOVERY
   useEffect(() => {
@@ -109,7 +112,18 @@ export default function Auth() {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="password">Senha</Label>
-                <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+                <div className="relative">
+                  <Input id="password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className="pr-10" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               <Button type="submit" className="w-full bg-[hsl(45,100%,50%)] text-[hsl(0,0%,10%)] hover:bg-[hsl(45,100%,45%)]" disabled={loading}>
                 {loading ? "Entrando..." : "Entrar"}
@@ -161,27 +175,51 @@ export default function Auth() {
             <form onSubmit={handleNewPassword} className="space-y-3">
               <div className="space-y-1">
                 <Label htmlFor="new-password">Nova senha</Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
+                <div className="relative">
+                  <Input
+                    id="new-password"
+                    type={showNewPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                    aria-label={showNewPassword ? "Ocultar senha" : "Mostrar senha"}
+                    tabIndex={-1}
+                  >
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="confirm-password">Confirmar senha</Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
+                <div className="relative">
+                  <Input
+                    id="confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                    aria-label={showConfirmPassword ? "Ocultar senha" : "Mostrar senha"}
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               <Button
                 type="submit"

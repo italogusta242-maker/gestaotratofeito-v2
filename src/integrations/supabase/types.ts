@@ -10,10 +10,52 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          changed_at: string
+          changes: Json | null
+          id: number
+          new_data: Json | null
+          old_data: Json | null
+          row_id: string | null
+          table_name: string
+          user_email: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          action: string
+          changed_at?: string
+          changes?: Json | null
+          id?: number
+          new_data?: Json | null
+          old_data?: Json | null
+          row_id?: string | null
+          table_name: string
+          user_email?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          action?: string
+          changed_at?: string
+          changes?: Json | null
+          id?: number
+          new_data?: Json | null
+          old_data?: Json | null
+          row_id?: string | null
+          table_name?: string
+          user_email?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       cartoes: {
         Row: {
           bandeira: string | null
