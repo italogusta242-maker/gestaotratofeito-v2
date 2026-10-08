@@ -14,6 +14,9 @@ import NovoVeiculoDialog from "@/components/NovoVeiculoDialog";
 import { Plus, Trash2, AlertCircle } from "lucide-react";
 import { translateError } from "@/lib/supabase-errors";
 import { validateVenda } from "@/lib/venda-validation";
+import { gerarParcelasSaldo } from "@/lib/venda-saldo";
+import { addDays, format } from "date-fns";
+import { formatBRL } from "@/lib/format";
 import type { Veiculo, ContaBancaria } from "@/lib/db-types";
 
 interface Props { veiculo: Veiculo; onClose: () => void; }
@@ -28,8 +31,10 @@ interface PagamentoLinha {
 
 const formasPagamento = ["PIX", "Dinheiro", "Cartão Débito", "Cartão Crédito", "Transferência", "Financiamento Banco", "Cheque", "Veículo na Troca"];
 
+const hojeISO = () => format(new Date(), "yyyy-MM-dd");
+
 function novaLinha(): PagamentoLinha {
-  return { id: crypto.randomUUID(), valor: "", forma: "PIX", contaId: "", dataRecebimento: new Date().toISOString().split("T")[0] };
+  return { id: crypto.randomUUID(), valor: "", forma: "PIX", contaId: "", dataRecebimento: hojeISO() };
 }
 
 export default function VendaDialog({ veiculo, onClose }: Props) {
@@ -40,6 +45,10 @@ export default function VendaDialog({ veiculo, onClose }: Props) {
   const [pagamentos, setPagamentos] = useState<PagamentoLinha[]>([novaLinha()]);
   const [loading, setLoading] = useState(false);
   const [clienteVendaId, setClienteVendaId] = useState<string | null>(null);
+  // Saldo que o cliente fica devendo (venda "picada"): em quantas parcelas e
+  // a partir de quando. Vira lançamentos pendentes e aparece no contrato.
+  const [saldoParcelas, setSaldoParcelas] = useState("1");
+  const [saldoVencimento, setSaldoVencimento] = useState(() => format(addDays(new Date(), 30), "yyyy-MM-dd"));
 
   // Trade-in vehicle modal state
   const [showNovoVeiculo, setShowNovoVeiculo] = useState(false);
@@ -61,6 +70,7 @@ export default function VendaDialog({ veiculo, onClose }: Props) {
   const totalPagamentos = pagamentos.reduce((s, p) => s + (parseFloat(p.valor) || 0), 0);
   const vendaNum = parseFloat(valorVenda) || 0;
   const restante = vendaNum - totalPagamentos;
+  const parcelasSaldo = restante > 0.01 ? gerarParcelasSaldo(restante, parseInt(saldoParcelas) || 1, saldoVencimento) : [];
 
   function addLinha() { setPagamentos([...pagamentos, novaLinha()]); }
   function removeLinha(id: string) { setPagamentos(pagamentos.filter(p => p.id !== id)); }
@@ -81,35 +91,47 @@ export default function VendaDialog({ veiculo, onClose }: Props) {
     }
     setLoading(true);
 
-    // 1. Cria transações primeiro (se falhar, veículo continua disponível)
-    const transacoes = pagamentos.map((p, i) => ({
-      descricao: pagamentos.length === 1
-        ? `Venda ${veiculo.placa}${p.forma === "Veículo na Troca" ? " (troca)" : ""}`
-        : `Venda ${veiculo.placa} — ${p.forma} (${i + 1}/${pagamentos.length})`,
-      valor: parseFloat(p.valor) || 0,
-      tipo: "Receita" as const,
-      status: p.forma === "Financiamento Banco" ? "Pendente" : "Pago",
-      data_vencimento: p.dataRecebimento,
-      data_pagamento: p.forma === "Financiamento Banco" ? null : p.dataRecebimento,
-      conta_bancaria_id: p.forma === "Veículo na Troca" ? null : (p.contaId || null),
-      centro_custo_id: veiculo.centro_custo_id,
-      veiculo_id: veiculo.id,
-      categoria: p.forma === "Veículo na Troca" ? "Troca de Veículo" : "Venda de Veículo",
-      user_id: user?.id,
-    }));
+    // 1. Cria transações primeiro (se falhar, veículo continua disponível).
+    // Pagamento com data futura (ex.: PIX combinado pra semana que vem) entra
+    // como Pendente — só o que já caiu conta como pago no contrato.
+    const hoje = hojeISO();
+    const transacoes = pagamentos.map((p, i) => {
+      const aReceber = p.forma === "Financiamento Banco" || (p.forma !== "Veículo na Troca" && p.dataRecebimento > hoje);
+      return {
+        descricao: pagamentos.length === 1
+          ? `Venda ${veiculo.placa}${p.forma === "Veículo na Troca" ? " (troca)" : ""}`
+          : `Venda ${veiculo.placa} — ${p.forma} (${i + 1}/${pagamentos.length})`,
+        valor: parseFloat(p.valor) || 0,
+        tipo: "Receita" as const,
+        status: aReceber ? "Pendente" : "Pago",
+        data_vencimento: p.dataRecebimento,
+        data_pagamento: aReceber ? null : p.dataRecebimento,
+        conta_bancaria_id: p.forma === "Veículo na Troca" ? null : (p.contaId || null),
+        centro_custo_id: veiculo.centro_custo_id,
+        veiculo_id: veiculo.id,
+        categoria: p.forma === "Veículo na Troca" ? "Troca de Veículo" : "Venda de Veículo",
+        forma_pagamento: p.forma,
+        parcela_atual: null as number | null,
+        total_parcelas: null as number | null,
+        user_id: user?.id,
+      };
+    });
 
-    if (restante > 0.01) {
+    for (const parc of parcelasSaldo) {
       transacoes.push({
-        descricao: `Saldo Restante Venda - ${veiculo.placa}`,
-        valor: restante,
+        descricao: `Venda ${veiculo.placa} — Saldo devedor${parc.total > 1 ? ` (parcela ${parc.numero}/${parc.total})` : ""}`,
+        valor: parc.valor,
         tipo: "Receita" as const,
         status: "Pendente",
-        data_vencimento: new Date().toISOString().split("T")[0],
+        data_vencimento: parc.data_vencimento,
         data_pagamento: null,
         conta_bancaria_id: null,
         centro_custo_id: veiculo.centro_custo_id,
         veiculo_id: veiculo.id,
         categoria: "Venda de Veículo (Saldo)",
+        forma_pagamento: "Saldo devedor",
+        parcela_atual: parc.numero,
+        total_parcelas: parc.total,
         user_id: user?.id,
       });
     }
@@ -125,7 +147,7 @@ export default function VendaDialog({ veiculo, onClose }: Props) {
       // 2. Marca veículo como Vendido. Se falhar, faz rollback das transações.
       const { error: veicError } = await supabase
         .from("veiculos")
-        .update({ status: "Vendido", cliente_venda_id: clienteVendaId })
+        .update({ status: "Vendido", cliente_venda_id: clienteVendaId, valor_venda: vendaNum, data_venda: hoje })
         .eq("id", veiculo.id);
 
       if (veicError) {
@@ -160,13 +182,21 @@ export default function VendaDialog({ veiculo, onClose }: Props) {
     }
   }
 
-  function handleVeiculoCadastrado(veiculoId?: string) {
+  async function handleVeiculoCadastrado(veiculoId?: string) {
+    // Identifica no contrato qual veículo entrou na troca. A transação continua
+    // vinculada ao veículo vendido — é ela que compõe o quadro de pagamento.
     if (veiculoId && transacoesCriadas.length > 0) {
-      // Find the transaction index for this trade-in line
       const tradeInIndices = pagamentos.map((p, i) => p.forma === "Veículo na Troca" ? i : -1).filter(i => i >= 0);
       const txIdx = tradeInIndices[currentTradeInIdx];
       if (txIdx !== undefined && transacoesCriadas[txIdx]) {
-        supabase.from("transacoes").update({ veiculo_id: veiculoId }).eq("id", transacoesCriadas[txIdx]);
+        const { data: troca } = await supabase.from("veiculos").select("placa, marca_modelo").eq("id", veiculoId).single();
+        if (troca) {
+          const { error } = await supabase
+            .from("transacoes")
+            .update({ descricao: `Venda ${veiculo.placa} — Veículo na Troca: ${troca.marca_modelo} (${troca.placa})` })
+            .eq("id", transacoesCriadas[txIdx]);
+          if (error) console.error("Erro ao identificar veículo da troca:", error);
+        }
       }
     }
 
@@ -269,8 +299,35 @@ export default function VendaDialog({ veiculo, onClose }: Props) {
                     ) : (
                       <span className="text-emerald-500 font-bold">✓ Fechado</span>
                     )}
-                    {restante > 0.01 && <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">Um lançamento pendente será criado para o saldo</p>}
                   </div>
+                </div>
+              )}
+
+              {vendaNum > 0 && restante > 0.01 && (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
+                  <p className="text-sm font-semibold text-amber-700">
+                    Saldo devedor do cliente: {formatBRL(restante)}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Parcelas</Label>
+                      <Input type="number" min={1} max={60} className="h-9" value={saldoParcelas} onChange={(e) => setSaldoParcelas(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">1º vencimento</Label>
+                      <Input type="date" className="h-9" value={saldoVencimento} onChange={(e) => setSaldoVencimento(e.target.value)} required />
+                    </div>
+                  </div>
+                  <ul className="text-xs text-muted-foreground space-y-0.5">
+                    {parcelasSaldo.map((parc) => (
+                      <li key={parc.numero}>
+                        {parc.total > 1 ? `Parcela ${parc.numero}/${parc.total}` : "Parcela única"} — {format(new Date(`${parc.data_vencimento}T12:00:00`), "dd/MM/yyyy")} — {formatBRL(parc.valor)}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[10px] text-muted-foreground leading-tight">
+                    Vira contas a receber pendentes e sai no contrato como "A pagar", junto com o que já foi pago.
+                  </p>
                 </div>
               )}
 

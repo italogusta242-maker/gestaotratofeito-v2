@@ -9,6 +9,7 @@ import { ptBR } from "date-fns/locale";
 import { enderecoCompleto, formatBRL, parseDateLocal } from "@/lib/format";
 import { EMPRESA } from "@/lib/empresa";
 import { fetchPixEmpresa } from "@/lib/pix";
+import { resumoPagamentos, rotuloPagamento } from "@/lib/venda-saldo";
 import logoTratoFeito from "@/assets/logo-trato-feito.png";
 import type { Veiculo, Cliente, Transacao, ChavePix } from "@/lib/db-types";
 
@@ -62,10 +63,15 @@ export default function ContratoVenda() {
           descricao: veiculo.forma_pagamento || "À vista",
           data_vencimento: veiculo.data_venda ?? format(hoje, "yyyy-MM-dd"),
           valor: Number(veiculo.valor_venda),
+          status: "Pago",
         } as unknown as Transacao)
       : null;
   const pagamentosParaExibir = temTransacao ? pagamentos : linhaSintetica ? [linhaSintetica] : [];
-  const totalNegociacao = pagamentosParaExibir.reduce((s, p) => s + Number(p.valor), 0);
+  const { total: totalNegociacao, pago: totalPago, devedor: saldoDevedor } = resumoPagamentos(pagamentosParaExibir);
+  const temSaldo = saldoDevedor > 0.01;
+  // Cláusulas após o quadro: com saldo devedor entra a 3.2 (confissão do
+  // saldo) e as seguintes andam uma casa.
+  const c = (n: number) => `3.${temSaldo ? n + 1 : n}`;
   const linhasPagamento = [...pagamentosParaExibir];
   while (linhasPagamento.length < 3) {
     linhasPagamento.push(null as unknown as Transacao);
@@ -140,7 +146,8 @@ export default function ContratoVenda() {
               <tr className="bg-gray-100">
                 <th className="border border-black p-1 w-10">Nº</th>
                 <th className="border border-black p-1">Forma de Pagamento</th>
-                <th className="border border-black p-1 w-32">Vencimento</th>
+                <th className="border border-black p-1 w-28">Vencimento</th>
+                <th className="border border-black p-1 w-20">Situação</th>
                 <th className="border border-black p-1 w-36">Valor (R$)</th>
               </tr>
             </thead>
@@ -148,22 +155,38 @@ export default function ContratoVenda() {
               {linhasPagamento.map((p, i) => (
                 <tr key={i}>
                   <td className="border border-black p-1 text-center">{i + 1}</td>
-                  <td className="border border-black p-1">{p ? p.descricao : "________________________"}</td>
+                  <td className="border border-black p-1">{p ? rotuloPagamento(p.descricao) : "________________________"}</td>
                   <td className="border border-black p-1 text-center">
                     {p ? format(parseDateLocal(p.data_vencimento) ?? new Date(), "dd/MM/yyyy") : "____/____/______"}
                   </td>
+                  <td className="border border-black p-1 text-center">{p ? (p.status && p.status !== "Pago" ? "A pagar" : "Pago") : ""}</td>
                   <td className="border border-black p-1 text-right">{p ? formatBRL(Number(p.valor)) : "R$ ________________"}</td>
                 </tr>
               ))}
               <tr>
-                <td className="border border-black p-1 font-bold text-right" colSpan={3}>VALOR TOTAL DA NEGOCIAÇÃO</td>
+                <td className="border border-black p-1 font-bold text-right" colSpan={4}>VALOR TOTAL DA NEGOCIAÇÃO</td>
                 <td className="border border-black p-1 font-bold text-right">{totalNegociacao > 0 ? formatBRL(totalNegociacao) : "R$ ______________________"}</td>
               </tr>
+              {temSaldo && (
+                <>
+                  <tr>
+                    <td className="border border-black p-1 text-right" colSpan={4}>VALOR JÁ PAGO</td>
+                    <td className="border border-black p-1 text-right">{formatBRL(totalPago)}</td>
+                  </tr>
+                  <tr className="bg-gray-100">
+                    <td className="border border-black p-1 font-bold text-right" colSpan={4}>SALDO DEVEDOR</td>
+                    <td className="border border-black p-1 font-bold text-right">{formatBRL(saldoDevedor)}</td>
+                  </tr>
+                </>
+              )}
             </tbody>
           </table>
 
-          <p className="mb-2">3.2. O pagamento poderá ser realizado mediante <strong>PIX</strong>, em conta de titularidade da VENDEDORA, <strong>CHAVE ({pixEmpresa?.tipo ?? "____"}): {pixEmpresa?.chave ?? "_______________________________"}</strong>, sendo obrigatória a apresentação do respectivo comprovante pelo(a) COMPRADOR(A).</p>
-          <p className="mb-2">3.3. É vedada a realização de pagamentos diretamente a colaboradores, prepostos ou terceiros não indicados formalmente pela VENDEDORA, sob pena de o valor não ser reconhecido como quitação da obrigação.</p>
+          {temSaldo && (
+            <p className="mb-2">3.2. O(A) COMPRADOR(A) declara ter pago até esta data o valor de <strong>{formatBRL(totalPago)}</strong> e reconhece e confessa dever à VENDEDORA o saldo de <strong>{formatBRL(saldoDevedor)}</strong>, que se obriga a quitar nos valores e vencimentos indicados como "A pagar" no quadro acima, sujeitando-se, em caso de atraso, ao disposto na Cláusula 7.</p>
+          )}
+          <p className="mb-2">{c(2)}. O pagamento poderá ser realizado mediante <strong>PIX</strong>, em conta de titularidade da VENDEDORA, <strong>CHAVE ({pixEmpresa?.tipo ?? "____"}): {pixEmpresa?.chave ?? "_______________________________"}</strong>, sendo obrigatória a apresentação do respectivo comprovante pelo(a) COMPRADOR(A).</p>
+          <p className="mb-2">{c(3)}. É vedada a realização de pagamentos diretamente a colaboradores, prepostos ou terceiros não indicados formalmente pela VENDEDORA, sob pena de o valor não ser reconhecido como quitação da obrigação.</p>
         </section>
 
         {/* 4. Transferência */}
