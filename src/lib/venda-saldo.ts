@@ -1,6 +1,9 @@
 import { addMonths, format } from "date-fns";
 import { parseDateLocal } from "@/lib/format";
 
+/** Categorias das transações geradas por uma venda (pagamentos, saldo e troca). */
+export const CATEGORIAS_VENDA = ["Venda de Veículo", "Venda de Veículo (Saldo)", "Troca de Veículo"];
+
 export interface ParcelaSaldo {
   numero: number;
   total: number;

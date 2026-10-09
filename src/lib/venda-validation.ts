@@ -11,18 +11,22 @@ export interface VendaValidationResult {
   restante?: number;
 }
 
-export function validateVenda(valorVenda: string, pagamentos: PagamentoLinha[]): VendaValidationResult {
+/**
+ * `jaRecebido`: parcelas do saldo que já tiveram baixa e não são editáveis
+ * (edição de venda). Entram na soma, mas não precisam de forma/conta.
+ */
+export function validateVenda(valorVenda: string, pagamentos: PagamentoLinha[], jaRecebido = 0): VendaValidationResult {
   const vendaNum = parseFloat(valorVenda) || 0;
 
   if (vendaNum <= 0) {
     return { ok: false, error: "Informe o valor da venda." };
   }
 
-  if (pagamentos.length === 0) {
+  if (pagamentos.length === 0 && jaRecebido <= 0) {
     return { ok: false, error: "Adicione ao menos uma forma de pagamento." };
   }
 
-  const totalPagamentos = pagamentos.reduce((s, p) => s + (parseFloat(p.valor) || 0), 0);
+  const totalPagamentos = pagamentos.reduce((s, p) => s + (parseFloat(p.valor) || 0), 0) + jaRecebido;
   const restante = vendaNum - totalPagamentos;
 
   if (restante < -0.01) {

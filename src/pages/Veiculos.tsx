@@ -135,6 +135,12 @@ export default function Veiculos() {
     setDraggingId(null);
     const veiculo = veiculos.find(v => v.id === veiculoId);
     if (!veiculo || veiculo.status === newStatus) return;
+    // Arrastar pra "Vendido" abre a venda: o status só muda junto com os
+    // pagamentos, senão o contrato sai "À vista" sem lançamento nenhum.
+    if (newStatus === "Vendido") {
+      setVendaVeiculo(veiculo);
+      return;
+    }
     setVeiculos(prev => prev.map(v => v.id === veiculoId ? { ...v, status: newStatus } : v));
     const { error } = await supabase.from("veiculos").update({ status: newStatus }).eq("id", veiculoId);
     if (error) { toast.error("Erro ao mover veículo"); load(); }
@@ -412,9 +418,13 @@ export default function Veiculos() {
                 <div><Label>Ano Modelo</Label><Input value={form.ano_modelo} onChange={(e) => setForm({ ...form, ano_modelo: e.target.value })} /></div>
                 <div><Label>Cor</Label><Input value={form.cor} onChange={(e) => setForm({ ...form, cor: upperCase(e.target.value) })} className="uppercase" /></div>
                 <div><Label>Status</Label>
-                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })} disabled={form.status === "Vendido"}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                    <SelectContent>
+                      {STATUSES.filter(s => s !== "Vendido" || form.status === "Vendido").map(s => (
+                        <SelectItem key={s} value={s} disabled={s === "Vendido"}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </div>
                 <div><Label>Valor Aquisição</Label><CurrencyInput value={parseFloat(form.valor_aquisicao) || 0} onChange={(v) => setForm({ ...form, valor_aquisicao: String(v) })} /></div>

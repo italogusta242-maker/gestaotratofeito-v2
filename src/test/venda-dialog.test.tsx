@@ -77,4 +77,31 @@ describe("validateVenda", () => {
     ]);
     expect(r.ok).toBe(true);
   });
+
+  it("caso do Maurício: 17.000 com 5.000 PIX + moto 10.000 deixa 2.000 de saldo", () => {
+    const r = validateVenda("17000", [
+      linha({ valor: "5000", forma: "PIX", contaId: "c1" }),
+      linha({ valor: "10000", forma: "Veículo na Troca", contaId: "" }),
+    ]);
+    expect(r.ok).toBe(true);
+    expect(r.restante).toBeCloseTo(2000);
+  });
+
+  it("edição: parcelas já recebidas entram na soma", () => {
+    const r = validateVenda("10000", [linha({ valor: "6000" })], 3000);
+    expect(r.ok).toBe(true);
+    expect(r.totalPagamentos).toBe(9000);
+    expect(r.restante).toBeCloseTo(1000);
+  });
+
+  it("edição: parcelas já recebidas contam no excesso", () => {
+    const r = validateVenda("10000", [linha({ valor: "8000" })], 3000);
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/maior que o valor de venda/);
+  });
+
+  it("edição: sem linhas editáveis vale se já há parcela recebida", () => {
+    expect(validateVenda("10000", [], 3000).ok).toBe(true);
+    expect(validateVenda("10000", []).ok).toBe(false);
+  });
 });

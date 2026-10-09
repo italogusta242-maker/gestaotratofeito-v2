@@ -14,18 +14,21 @@ import { CurrencyInput } from "@/components/ui/masked-input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Car, ShoppingCart, Trash2, FileText, Upload, Download, Loader2, Plus, Pencil, Calendar, User, FileSignature, Undo2, X } from "lucide-react";
+import { ArrowLeft, Car, ShoppingCart, Trash2, FileText, Upload, Download, Loader2, Plus, Pencil, Calendar, User, FileSignature, Undo2, X, Receipt } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import DespesaDialog from "@/components/DespesaDialog";
 import VendaDialog from "@/components/VendaDialog";
 import ClienteSelector from "@/components/ClienteSelector";
 import { ChecklistDocumentos } from "@/components/ChecklistDocumentos";
-import { formatBRL } from "@/lib/format";
+import { formatBRL, parseDateLocal } from "@/lib/format";
+import { CATEGORIAS_VENDA, resumoPagamentos, rotuloPagamento } from "@/lib/venda-saldo";
 import { PlacaBadge } from "@/components/ui/placa-badge";
 import type { VeiculoComCentro, Cliente, Transacao, CentroCusto } from "@/lib/db-types";
 import { translateError } from "@/lib/supabase-errors";
 
-const statusOptions = ["Em Estoque", "Preparação", "Na Oficina", "No Despachante", "No Pátio", "Consignado", "Vendido"];
+// "Vendido" fica de fora de propósito: só entra via "Realizar Venda", que
+// lança os pagamentos. Marcar direto deixava o contrato com "À vista" fantasma.
+const statusOptions = ["Em Estoque", "Preparação", "Na Oficina", "No Despachante", "No Pátio", "Consignado"];
 
 const statusColor: Record<string, string> = {
   "Em Estoque": "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
@@ -53,6 +56,7 @@ export default function VeiculoDetalhe() {
   const [uploading, setUploading] = useState(false);
   const [showDespesa, setShowDespesa] = useState(false);
   const [showVenda, setShowVenda] = useState(false);
+  const [showEditarVenda, setShowEditarVenda] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showProcuracao, setShowProcuracao] = useState(false);
   const [tipoReconhecimento, setTipoReconhecimento] = useState("GOV.BR");
@@ -132,7 +136,7 @@ export default function VeiculoDetalhe() {
         .from("transacoes")
         .delete()
         .eq("veiculo_id", id)
-        .in("categoria", ["Venda de Veículo", "Venda de Veículo (Saldo)", "Troca de Veículo"]);
+        .in("categoria", CATEGORIAS_VENDA);
       if (txErr) {
         toast.error("Não foi possível apagar as transações: " + translateError(txErr));
         return;
@@ -435,6 +439,12 @@ export default function VeiculoDetalhe() {
             </Button>
           )}
 
+          {canWrite && veiculo.status === "Vendido" && (
+            <Button variant="outline" className="gap-1.5" onClick={() => setShowEditarVenda(true)}>
+              <Receipt className="h-4 w-4" /> Editar Pagamento
+            </Button>
+          )}
+
           {role === "admin" && veiculo.status === "Vendido" && (
             <Button variant="outline" className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10" onClick={handleDesfazerVenda}>
               <Undo2 className="h-4 w-4" /> Desfazer Venda
@@ -480,6 +490,84 @@ export default function VeiculoDetalhe() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Pagamentos da Venda — o mesmo quadro que sai no contrato */}
+      {veiculo.status === "Vendido" && (() => {
+        const pagamentosVenda = transacoes
+          .filter(t => t.tipo === "Receita")
+          .sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento));
+        const { total, pago, devedor } = resumoPagamentos(pagamentosVenda);
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">Pagamentos da Venda</h2>
+              {canWrite && (
+                <Button size="sm" variant="outline" className="gap-1" onClick={() => setShowEditarVenda(true)}>
+                  <Pencil className="h-4 w-4" /> Editar
+                </Button>
+              )}
+            </div>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Forma de Pagamento</TableHead>
+                      <TableHead>Vencimento</TableHead>
+                      <TableHead>Situação</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pagamentosVenda.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
+                          Nenhum pagamento lançado — o contrato vai sair só com o valor do cadastro.
+                          {canWrite && <> Use <strong>Editar</strong> para informar como o cliente pagou.</>}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      <>
+                        {pagamentosVenda.map(t => {
+                          const pendente = t.status && t.status !== "Pago";
+                          return (
+                            <TableRow key={t.id}>
+                              <TableCell className="font-medium">{rotuloPagamento(t.descricao)}</TableCell>
+                              <TableCell>{format(parseDateLocal(t.data_vencimento) ?? new Date(), "dd/MM/yyyy")}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={pendente ? "text-amber-700 border-amber-500/40" : "text-emerald-700 border-emerald-500/40"}>
+                                  {pendente ? "A pagar" : "Pago"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right font-medium">{formatBRL(Number(t.valor))}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                          <TableCell colSpan={3} className="text-right font-semibold">Total da negociação</TableCell>
+                          <TableCell className="text-right font-bold">{formatBRL(total)}</TableCell>
+                        </TableRow>
+                        {devedor > 0.01 && (
+                          <>
+                            <TableRow className="hover:bg-transparent">
+                              <TableCell colSpan={3} className="text-right text-muted-foreground">Já pago</TableCell>
+                              <TableCell className="text-right">{formatBRL(pago)}</TableCell>
+                            </TableRow>
+                            <TableRow className="hover:bg-transparent">
+                              <TableCell colSpan={3} className="text-right font-semibold text-amber-700">Saldo devedor</TableCell>
+                              <TableCell className="text-right font-bold text-amber-700">{formatBRL(devedor)}</TableCell>
+                            </TableRow>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
 
       {!isEmissao && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -993,6 +1081,7 @@ export default function VeiculoDetalhe() {
       {/* Dialogs */}
       {showDespesa && <DespesaDialog veiculo={veiculo} onClose={() => { setShowDespesa(false); loadAll(); }} />}
       {showVenda && <VendaDialog veiculo={veiculo} onClose={() => { setShowVenda(false); loadAll(); }} />}
+      {showEditarVenda && <VendaDialog veiculo={veiculo} modo="editar" onClose={() => { setShowEditarVenda(false); loadAll(); }} />}
     </div>
   );
 }
